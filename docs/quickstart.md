@@ -56,6 +56,8 @@ Kibana 启动时会安装三份 Nginx 看板，在 **Analytics → Dashboard** �
 
 ## 4. 多机采集
 
+从创建 inventory、Vault 密钥到单机试跑及验收，见 [Ansible 批量采集完整步骤](full-setup.md#远程-nginx-批量采集)。
+
 1. 在中心机的 `.env` 设置 `ES_INGEST_BIND` 为内网地址，填写 `ES_INGEST_CERT` 和 `ES_INGEST_KEY` 的绝对路径。用 `./deploy/single-node/start.sh --with-elk --with-ingest-gateway` 启动。
 2. 在 Ansible 控制机复制 [采集清单示例](../deploy/collectors/inventory.example.ini) 为 `deploy/collectors/inventory.ini`，填写采集机 SSH 地址、中心机 HTTPS 网关和日志路径。采集名默认使用清单主机名，可通过 `collector_hostname` 单独覆盖。用 Ansible Vault 创建 `deploy/collectors/vault.yml`，其中 `collector_elasticsearch_password` 对应中心机 `.env` 的 `ELASTICSEARCH_INGEST_PASSWORD`。
 3. 用以下命令部署。采集机需要 SSH、sudo 和 Docker Compose v2。使用私有 CA 时在清单填写 `collector_ca_file`。

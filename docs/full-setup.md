@@ -63,20 +63,90 @@ NGINX_LOG_GLOB=sre-aiobs.jsonl
 
 ### 远程 Nginx 批量采集
 
-中心机在 `.env` 设置 `ES_INGEST_BIND` 为内网地址，并填写 `ES_INGEST_CERT` 和 `ES_INGEST_KEY` 的绝对路径。默认接入端口为 9443，只向采集主机开放。
+**1. 配置中心机 HTTPS 网关**
+
+在中心机 `.env` 中填写实际内网地址和证书文件的绝对路径。证书需要覆盖采集端使用的网关域名。只向有权限的采集主机开放 9443。
+
+```dotenv
+ES_INGEST_BIND=10.0.0.10
+ES_INGEST_PORT=9443
+ES_INGEST_CERT=/etc/sre-aiobs/tls/fullchain.pem
+ES_INGEST_KEY=/etc/sre-aiobs/tls/privkey.pem
+```
 
 ```bash
 ./deploy/single-node/start.sh --with-elk --with-ingest-gateway
 ```
 
-在 Ansible 控制机复制 [清单示例](../deploy/collectors/inventory.example.ini)，填写 SSH 地址、网关 HTTPS 域名和日志路径。将中心机的 `ELASTICSEARCH_INGEST_PASSWORD` 存为 Ansible Vault 的 `collector_elasticsearch_password`。
+同一中心机也可以追加 `--with-nginx-collector` 采集本机日志。
+
+**2. 准备 Ansible 控制机和采集机**
+
+控制机安装 Ansible，确认 `ansible-playbook --version` 和 `ansible-vault --version` 可用。采集机需提供 SSH、Python 3、sudo、Docker Compose v2，以及实际可读取的 Nginx JSON 日志。确认采集机可访问中心机网关和 Filebeat 镜像仓库。
+
+在控制机进入项目目录，首次创建私有清单：
 
 ```bash
+cp -n deploy/collectors/inventory.example.ini deploy/collectors/inventory.ini
+```
+
+按实际环境编辑 `deploy/collectors/inventory.ini`：
+
+```ini
+[nginx_collectors]
+nginx01 ansible_host=192.0.2.10
+nginx02 ansible_host=192.0.2.11 collector_hostname=nginx-edge-02
+
+[nginx_collectors:vars]
+ansible_user=deployer
+collector_elasticsearch_url=https://logs.internal.example:9443
+collector_log_dir=/var/log/nginx
+collector_log_glob=sre-aiobs.jsonl
+```
+
+采集名默认取清单左侧的主机名，可为单台设置 `collector_hostname`。日志路径或登录用户不同，也可在对应主机行覆盖。网关使用私有 CA 时，添加 `collector_ca_file=/绝对路径/ca.pem`，该路径位于 **Ansible 控制机**。登录口令、私钥和 Elasticsearch 密钥不写进 inventory。
+
+**3. 创建 Vault 并检查连接**
+
+```bash
+ansible-vault create deploy/collectors/vault.yml
+```
+
+在打开的编辑器写入以下变量，将占位符替换为中心机 `.env` 的 `ELASTICSEARCH_INGEST_PASSWORD`。保存后 Vault 会加密文件。已有 Vault 时用 `ansible-vault edit` 更新。
+
+```yaml
+collector_elasticsearch_password: "替换为中心机生成的写入密码"
+```
+
+```bash
+ansible -i deploy/collectors/inventory.ini nginx_collectors -m ping
+ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.yml --list-hosts
+ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.yml --syntax-check
+```
+
+**4. 先试一台，再批量部署**
+
+```bash
+ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.yml \
+  --ask-vault-pass -e @deploy/collectors/vault.yml --limit nginx01
+
 ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.yml \
   --ask-vault-pass -e @deploy/collectors/vault.yml
 ```
 
-采集名默认使用清单主机名，单台可设置 `collector_hostname`。同一中心机也可以同时开启 `--with-nginx-collector`，采集本机日志。[批量采集详情](deployment.md#elasticsearch-与-nginx-批量采集)
+若 sudo 要密码，加 `--ask-become-pass`。Playbook 每批最多五台，配置安装在采集机的 `/opt/sre-aiobs-collector`；重复执行会更新配置并复用采集进度。
+
+**5. 验证采集**
+
+登录采集机查看容器状态与日志：
+
+```bash
+cd /opt/sre-aiobs-collector
+sudo docker compose ps
+sudo docker compose logs --tail=80 nginx-collector
+```
+
+在 Kibana **Discover → Nginx** 选择覆盖新日志的时间范围，用 `collector_hostname : "nginx-edge-02"` 核对主机来源。没有数据时，先确认 Nginx 正在写入匹配的 JSON 文件，再检查采集机到网关的 HTTPS 连通性、证书和写入凭据。[采集与索引详情](deployment.md#elasticsearch-与-nginx-批量采集)
 
 ### 已有 Elasticsearch 或外置 PostgreSQL／Redis
 
