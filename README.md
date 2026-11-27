@@ -2,6 +2,9 @@
 
 Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearch 和 Loki，通过聚合结果检测访问异常，使用 PostgreSQL 保存任务与风险事件，通过 Redis 协调任务、AI 调用限额和 Telegram 冷却。
 
+
+[更新与配置说明](docs/update-and-configuration.md)记录 Go 升级、登录双重验证、数据源接入、路由和巡检报告的配置方法。
+
 ## 界面预览
 
 [功能预览文档](docs/preview/README.md)汇总运维、Grafana、Kibana 和采集链路。
