@@ -128,3 +128,75 @@ func TestElasticsearchBackendUsesMappedCompositeField(t *testing.T) {
 		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
 	}
 }
+
+func TestWindowLatencyFromElasticsearch(t *testing.T) {
+	clientHTTP := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var query struct {
+			Aggs map[string]struct {
+				Percentiles struct {
+					Field    string
+					Percents []int
+				}
+			}
+		}
+		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
+			t.Error(err)
+		}
+		latency := query.Aggs["latency"].Percentiles
+		if latency.Field != "request_time" || fmt.Sprint(latency.Percents) != "[50 95 99]" {
+			t.Errorf("unexpected percentiles: %+v", latency)
+		}
+		fmt.Fprint(w, `{"hits":{"total":{"value":3}},"aggregations":{"latency":{"values":{"50.0":0.1,"95.0":0.3,"99.0":null}}}}`)
+	}))
+	c := Client{Config: config.Source{URL: "https://logs.test", Kind: "elasticsearch", Index: "app", Fields: map[string]string{"timestamp": "@timestamp", "latency": "request_time"}}, HTTP: clientHTTP}
+	end := time.Now()
+	snapshot, err := c.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
+	if err != nil || snapshot.Total != 3 || len(snapshot.OverallLatency) != 2 || snapshot.OverallLatency["95.0"] != 0.3 {
+		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
+	}
+}
+
+func TestLokiWindowLatencyCombinesStreams(t *testing.T) {
+	calls := 0
+	clientHTTP := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		query := r.URL.Query().Get("query")
+		if calls == 1 {
+			if !strings.Contains(query, "count_over_time") {
+				t.Errorf("unexpected total query: %s", query)
+			}
+			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"3"]}]}}`)
+			return
+		}
+		percentiles := []string{"50", "95", "99"}
+		if calls > 4 || !strings.HasPrefix(query, "quantile_over_time(0."+percentiles[calls-2]+",") || !strings.HasSuffix(query, "by ()") || !strings.Contains(query, " unwrap request_time ") {
+			t.Errorf("unexpected percentile query: %s", query)
+		}
+		fmt.Fprintf(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"0.%d"]}]}}`, calls)
+	}))
+	c := Client{Config: config.Source{URL: "https://logs.test", Kind: "loki", Selector: `{app="nginx"}`, Fields: map[string]string{"latency": "request_time"}}, HTTP: clientHTTP}
+	end := time.Now()
+	snapshot, err := c.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
+	if err != nil || calls != 4 || snapshot.OverallLatency["50.0"] != 0.2 || snapshot.OverallLatency["95.0"] != 0.3 || snapshot.OverallLatency["99.0"] != 0.4 {
+		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
+	}
+}
+
+func TestElasticsearchBasicAuthAndEmptyIndex(t *testing.T) {
+	t.Setenv("TEST_ES_BASIC_SECRET", "fixture-password")
+	calls := 0
+	httpClient := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "sre_aiobs_reader" || pass != "fixture-password" {
+			t.Error("missing Elasticsearch Basic credentials")
+		}
+		fmt.Fprint(w, `{"hits":{"total":{"value":0}}}`)
+	}))
+	client := Client{Config: config.Source{URL: "https://logs.test", Index: "nginx-access-*", Kind: "elasticsearch", Username: "sre_aiobs_reader", CredentialEnv: "TEST_ES_BASIC_SECRET", Fields: map[string]string{"timestamp": "@timestamp", "ip": "client_ip"}}, HTTP: httpClient}
+	end := time.Now()
+	snapshot, err := client.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
+	if err != nil || snapshot.Total != 0 || calls != 1 {
+		t.Fatalf("snapshot=%+v calls=%d err=%v", snapshot, calls, err)
+	}
+}

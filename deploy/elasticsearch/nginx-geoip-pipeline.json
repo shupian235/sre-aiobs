@@ -1,0 +1,79 @@
+{
+  "description": "Normalize Nginx dashboard fields and enrich client IP",
+  "processors": [
+    {
+      "rename": {
+        "field": "http_host",
+        "target_field": "nginx_host",
+        "ignore_missing": true,
+        "if": "ctx.nginx_host == null"
+      }
+    },
+    {
+      "rename": {
+        "field": "http_method",
+        "target_field": "method",
+        "ignore_missing": true,
+        "if": "ctx.method == null"
+      }
+    },
+    {
+      "rename": {
+        "field": "http_user_agent",
+        "target_field": "user_agent",
+        "ignore_missing": true,
+        "if": "ctx.user_agent == null"
+      }
+    },
+    {
+      "set": {
+        "field": "request_uri",
+        "copy_from": "request_path",
+        "ignore_empty_value": true,
+        "if": "ctx.request_uri == null"
+      }
+    },
+    {
+      "set": {
+        "field": "log_hostname",
+        "copy_from": "hostname",
+        "ignore_empty_value": true,
+        "if": "ctx.log_hostname == null"
+      }
+    },
+    {
+      "set": {
+        "field": "log_hostname",
+        "copy_from": "host.name",
+        "ignore_empty_value": true,
+        "if": "ctx.log_hostname == null"
+      }
+    },
+    {
+      "script": {
+        "source": "if (ctx.request_uri != null && ctx.request_path == null) { int query = ctx.request_uri.indexOf('?'); ctx.request_path = query == -1 ? ctx.request_uri : ctx.request_uri.substring(0, query); } if (ctx.status != null) { try { int status = Integer.parseInt(ctx.status.toString()); ctx.error_rate_sample = status >= 400 && status < 600 ? 100 : 0; } catch (Exception ignored) {} }"
+      }
+    },
+    {
+      "geoip": {
+        "field": "client_ip",
+        "target_field": "client_geo",
+        "ignore_missing": true,
+        "ignore_failure": true,
+        "properties": [
+          "country_iso_code",
+          "region_iso_code",
+          "country_name"
+        ]
+      }
+    },
+    {
+      "set": {
+        "field": "client_geo.country_name",
+        "copy_from": "geoip.country_name_zh",
+        "ignore_empty_value": true,
+        "if": "ctx.geoip != null && ctx.geoip.country_name_zh != null"
+      }
+    }
+  ]
+}

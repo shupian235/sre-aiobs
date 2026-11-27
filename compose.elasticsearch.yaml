@@ -1,0 +1,49 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.security.autoconfiguration.enabled: "false"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+      ES_JAVA_OPTS: ${ELASTICSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+      node.store.allow_mmap: "false"
+    volumes:
+      - elasticdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", 'curl -fsS --user "elastic:$$ELASTIC_PASSWORD" http://localhost:9200/ >/dev/null']
+      interval: 5s
+      timeout: 4s
+      retries: 30
+  elasticsearch-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    entrypoint: ["/bin/bash", "/setup/bootstrap.sh"]
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+      ELASTICSEARCH_READER_PASSWORD: ${ELASTICSEARCH_READER_PASSWORD:?set ELASTICSEARCH_READER_PASSWORD}
+      ELASTICSEARCH_INGEST_PASSWORD: ${ELASTICSEARCH_INGEST_PASSWORD:?set ELASTICSEARCH_INGEST_PASSWORD}
+    volumes:
+      - ./deploy/elasticsearch:/setup:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+  app:
+    environment:
+      ELASTICSEARCH_READER_PASSWORD: ${ELASTICSEARCH_READER_PASSWORD:?set ELASTICSEARCH_READER_PASSWORD}
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully
+  grafana:
+    environment:
+      ELASTICSEARCH_READER_PASSWORD: ${ELASTICSEARCH_READER_PASSWORD:?set ELASTICSEARCH_READER_PASSWORD}
+    volumes:
+      - ./deploy/grafana/nginx-datasource.yaml:/etc/grafana/provisioning/datasources/nginx.yaml:ro
+      - ./deploy/grafana/nginx-dashboard.json:/var/lib/grafana/dashboards/nginx.json:ro
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully
+
+volumes:
+  elasticdata:

@@ -1,0 +1,17 @@
+services:
+  nginx-collector:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    user: root
+    command: ["filebeat", "-e"]
+    env_file:
+      - collector.env
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - {{ (collector_log_dir ~ ':/var/log/sre-nginx:ro') | to_json }}
+{% if collector_ca_file is defined %}
+      - ./ca.crt:/etc/pki/tls/certs/sre-aiobs-ca.crt:ro
+{% endif %}
+      - filebeatdata:/usr/share/filebeat/data
+    restart: unless-stopped
+volumes:
+  filebeatdata:

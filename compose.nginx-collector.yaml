@@ -1,0 +1,19 @@
+services:
+  nginx-collector:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    environment:
+      ES_INGEST_URL: http://elasticsearch:9200
+      ELASTICSEARCH_INGEST_PASSWORD: ${ELASTICSEARCH_INGEST_PASSWORD:?set ELASTICSEARCH_INGEST_PASSWORD}
+      NGINX_LOG_GLOB: ${NGINX_LOG_GLOB:-access.log}
+    volumes:
+      - ./deploy/collectors/filebeat.config.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ${NGINX_LOG_DIR:-/var/log/nginx}:/var/log/sre-nginx:ro
+      - filebeatdata:/usr/share/filebeat/data
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+volumes:
+  filebeatdata:

@@ -77,7 +77,7 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 	if err != nil {
 		return err
 	}
-	report := platform.Report{VulnerabilityScan: s.Fields["vulnerability"] != "", Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window}
+	report := platform.Report{LatencyThreshold: c.Rules.Latency, VulnerabilityScan: s.Fields["vulnerability"] != "", Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window}
 	if !saved {
 		snapshot, err = (source.Client{Config: s, HTTP: r.HTTP}).Aggregate(ctx, j.Window)
 		if err != nil {

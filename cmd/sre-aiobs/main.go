@@ -105,6 +105,11 @@ func run() error {
 	if err := metrics.ValidateURL(victoria.ReadURL); err != nil {
 		return fmt.Errorf("VICTORIAMETRICS_READ_URL: %w", err)
 	}
+	victoria.GrafanaURL = os.Getenv("GRAFANA_URL")
+	if err := metrics.ValidateURL(victoria.GrafanaURL); err != nil {
+		return fmt.Errorf("GRAFANA_URL: %w", err)
+	}
+
 	r.Metrics = victoria
 
 	var aiClient *ai.Client
@@ -176,7 +181,7 @@ func run() error {
 		Current: func() []config.Source { return activeConfig.Load().Sources },
 		HTTP:    client,
 	}
-	if victoria.ReadURL != "" {
+	if victoria.ReadURL != "" || victoria.GrafanaURL != "" {
 		access.MetricsLink = func(ctx context.Context, id string) (string, error) {
 			job, err := st.RunWindow(ctx, id)
 			if errors.Is(err, pgx.ErrNoRows) {

@@ -1,0 +1,14 @@
+{
+  "index_patterns": ["app-logs-*"],
+  "priority": 150,
+  "template": {
+    "settings": {"number_of_shards": 1, "number_of_replicas": 0},
+    "mappings": {"properties": {
+      "@timestamp": {"type": "date"},
+      "service": {"type": "keyword"},
+      "level": {"type": "keyword"},
+      "exception_type": {"type": "keyword"},
+      "dependency_failure": {"type": "keyword"}
+    }}
+  }
+}

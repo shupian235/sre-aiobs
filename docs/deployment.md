@@ -36,6 +36,26 @@ AI 默认关闭。设置 `ai.provider` 为 `openai` 或 `claude` 并填写 `ai.m
 
 ## 部署
 
+### 单机部署包
+
+将项目改动提交后，在 Git 工作区根目录生成部署包。脚本只打包当前提交的文件：
+
+```sh
+./deploy/single-node/package.sh
+```
+
+将 `dist/sre-aiobs-single-node.tar.gz` 传到目标机。目标机需安装 Docker、Compose v2 和 OpenSSL，并能拉取基础镜像和 Go 模块。部署包包含构建源码、Compose 清单、数据库迁移、Grafana 配置及预览。
+
+```sh
+tar -xzf sre-aiobs-single-node.tar.gz
+cd sre-aiobs
+./deploy/single-node/start.sh
+```
+
+首次运行会生成 `.env` 和空数据源配置，启动 Go 服务、PostgreSQL、Redis、VictoriaMetrics 和 Grafana。再次运行会复用配置、密码和数据卷。若沿用已有 `.env`，补齐 `GRAFANA_ADMIN_PASSWORD` 后再运行。查看端口映射可用脚本输出，默认看板为 `http://127.0.0.1:8080/`，Grafana 为 `http://127.0.0.1:3001/`，登录密码在目标机的 `.env`。可以用 `./deploy/single-node/start.sh --check` 只校验 Compose 配置。
+
+接入真实日志时，参考 `config.example.yaml` 将数据源加入 `config.yaml`，然后再次运行启动脚本，使容器重新读取配置和环境变量。新接入的凭据写入 `.env`。给远程查看者配置内网 HTTPS 入口，并将 `GRAFANA_URL` 和 `VICTORIAMETRICS_READ_URL` 设置为对应的可访问地址。修改 Grafana 密码时，已有数据卷中的管理员密码需在 Grafana 管理界面更新。
+
 ### Docker Compose
 
 在能访问日志源的机器安装 Docker 和 Compose v2，然后克隆仓库。
@@ -170,3 +190,52 @@ docker compose -f compose.yaml -f compose.victoriametrics.yaml up -d --build
 - `sre_aiobs_window_max_risk_score` 和 `sre_aiobs_window_evaluated` 保存最高风险分与探测完成标记。
 
 异常链接按对应任务窗口查询时间序列，打开后显示 VictoriaMetrics 的范围查询结果。启用前已完成的任务历史保留在 PostgreSQL，VictoriaMetrics 从启用后完成的窗口开始写入。原始日志与事件明细仍分别由日志源和 PostgreSQL 提供。发送失败会通过现有任务机制重试，同一任务的已成功告警沿用投递去重。样本标签不包含 IP、URI、凭据或 Run ID。
+
+## Grafana 延迟与异常图
+
+给目标日志源映射单位为秒的 `fields.latency`，例如 Elasticsearch 的 `nginx.request_time` 或 Loki JSON 的 `request_time`。应用按原始延迟样本计算每个探测窗口的 P50、P95、P99。每 URI 的分位数继续用于接口分析；总窗口图采用源端整体聚合。缺少采样的窗口留空。
+
+已有 Grafana 时，添加 VictoriaMetrics 为 Prometheus 类型数据源，然后导入 [dashboard.json](../deploy/grafana/dashboard.json)。在仪表盘顶部选择数据源、日志源和窗口粒度。仪表盘提供三张独立分位数图、对比图、P95 与阈值图、P95 越限窗口、风险事件及最高风险评分图。底部的任务和 AI 图表需用 Prometheus 兼容采集器抓取 `/metrics`。
+
+本地可让 Compose 自动配置 VictoriaMetrics 数据源和仪表盘。在 `.env` 中设置强随机的 `GRAFANA_ADMIN_PASSWORD`，然后运行：
+
+```sh
+docker compose -f compose.yaml -f compose.victoriametrics.yaml -f compose.grafana.yaml up -d --build
+```
+
+Grafana 默认绑定宿主机 `127.0.0.1:3001`。使用 `admin` 和设置的密码登录。通过 `GRAFANA_URL` 指定浏览器能访问的 Grafana 基础地址后，异常链接优先跳转至仪表盘 `sre-aiobs`，并带入任务的日志源、窗口粒度和时间范围。没有配置该地址时，链接沿用 VictoriaMetrics 查询。
+
+## Elasticsearch 与 Nginx 批量采集
+
+新服务器有结构化 Nginx 日志时，在部署包目录启动整套服务及同机 Filebeat：
+
+```sh
+NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl ./deploy/single-node/start.sh --with-nginx-collector
+```
+
+生产部署请在 `.env` 中持久化 `NGINX_LOG_DIR` 和 `NGINX_LOG_GLOB`。默认读取 `/var/log/nginx/access.log`，目录以内只读取匹配规则的 JSON 行。如果 Nginx 已有兼容的 JSON 日志，直接指定文件。旧式 combined 文本日志需继续走已有采集链路，或经审批添加 [JSON 日志格式](../deploy/collectors/nginx-log-format.conf) 并设置单独的 access log。先执行 `nginx -t` 再按现有变更流程重新加载。对已有 `config.yaml`，可把 [预设数据源](../deploy/single-node/config.elasticsearch.yaml) 合并到原配置。
+
+索引和映射随集群初始化：
+
+| 索引模式 | 数据入口 | 探测与查询 |
+| --- | --- | --- |
+| `nginx-access-*` | 本机或批量 Filebeat，按日志 UTC 日期路由 | Nginx 风险接口、状态码、时延、请求量、客户端 IP 和 GeoIP |
+| `app-logs-*` | 现有应用日志采集链路，使用独立写入凭据 | 按日志级别、异常类别和下游故障巡检 |
+| `vulnerability-findings-*` | 已有扫描结果发布流程，使用独立写入凭据 | CVE 聚合、小时报告与日报 |
+
+`--with-elasticsearch` 仅启动服务栈与索引初始化。应用和 Grafana 使用索引范围内的只读凭据。Filebeat 写入凭据只覆盖 Nginx 索引。Elasticsearch 数据目录持久化，索引清理和快照请按业务数据保留策略配置。
+
+多台 Nginx 使用以下流程：
+
+1. 在中心服务器的 `.env` 设置 `ES_INGEST_BIND` 为内网地址。将 `ES_INGEST_CERT` 和 `ES_INGEST_KEY` 指向中心机的证书链和私钥文件，默认为 9443 端口。用 `./deploy/single-node/start.sh --with-ingest-gateway` 启动。只允许采集主机通过内网访问该端口。
+2. 复制 [示例清单](../deploy/collectors/inventory.example.ini) 为 `deploy/collectors/inventory.ini`，填写真实主机、HTTPS 网关域名以及日志路径。所有采集机需能 SSH 登录，且具有 sudo 和 Docker Compose v2。使用私有 CA 时在清单中填写 `collector_ca_file`，路径指向运行 Ansible 的控制机上的 PEM 文件。
+3. 在控制机用 `ansible-vault create deploy/collectors/vault.yml` 创建加密变量文件，填入 `collector_elasticsearch_password`，值取中心服务器 `.env` 的 `ELASTICSEARCH_INGEST_PASSWORD`。运行下列命令，默认每批最多五台。重复执行保留采集位置并应用配置更新。
+
+```sh
+ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.yml \
+  --ask-vault-pass -e @deploy/collectors/vault.yml
+```
+
+Grafana 登录后打开 `/d/sre-aiobs-nginx` 的「Nginx Access 日志看板」。面板可看每分钟 QPS、错误率、状态码、域名、服务、主机、接口、User-Agent、流量、客户端 IP、GeoIP，以及 P50、P95、P99。默认按附件口径过滤 `/ws/v1/`、`cb` 服务和 ALB 健康检查，可在「流量过滤」修改 Lucene 表达式。巡检异常在 `/d/sre-aiobs/sre-aiobs` 查看。访问 Grafana 的人员可查看日志数据和客户端 IP，请用现有内网访问控制限制账号。
+
+日志需提供真实来源 IP。Nginx 位于代理之后时，应沿用已有的可信代理与 real IP 配置。地区面板需要 Elasticsearch 内置 GeoIP 数据库完成下载并解析公网 IP。离线环境需由管理员提供 GeoIP 数据。服务级和响应体流量图分别依赖 `service` 与 `body_bytes_sent`。新增模板和管道应用于新建索引，既有数据要先核对字段和模板兼容性。应用通知中为单个事件添加地理信息时按本手册前文配置 `geo_db`。

@@ -20,6 +20,7 @@ type Source struct {
 	Environment    string
 	Selector       string
 	CredentialEnv  string `yaml:"credential_env"`
+	Username       string
 	Tenant         string
 	Fields         map[string]string
 	Hosts          []string
@@ -53,14 +54,15 @@ type AI struct {
 }
 
 type Config struct {
-	Listen       string
-	Sources      []Source
-	Rules        Rules
-	AI           AI
-	TelegramChat string   `yaml:"telegram_chat"`
-	EmailFrom    string   `yaml:"email_from"`
-	EmailTo      []string `yaml:"email_to"`
-	GeoDB        string   `yaml:"geo_db"`
+	AllowEmptySources bool `yaml:"allow_empty_sources"`
+	Listen            string
+	Sources           []Source
+	Rules             Rules
+	AI                AI
+	TelegramChat      string   `yaml:"telegram_chat"`
+	EmailFrom         string   `yaml:"email_from"`
+	EmailTo           []string `yaml:"email_to"`
+	GeoDB             string   `yaml:"geo_db"`
 }
 
 var methodName = regexp.MustCompile(`^[A-Z][A-Z0-9_-]{0,31}$`)
@@ -85,8 +87,11 @@ func Load(path string) (Config, error) {
 	if err = d.Decode(&extra); err != io.EOF {
 		return c, fmt.Errorf("expected one YAML document")
 	}
-	if len(c.Sources) == 0 || c.Rules.IP < 1 || c.Rules.URI < 1 || c.Rules.Errors < 1 || c.Rules.BackendErrors < 1 || c.Rules.DependencyErrors < 1 || c.Rules.NginxBurst < 1 || c.Rules.Latency <= 0 || c.Rules.BaselineMultiplier <= 1 {
-		return c, fmt.Errorf("invalid sources or thresholds")
+	if len(c.Sources) == 0 && !c.AllowEmptySources {
+		return c, fmt.Errorf("no log sources configured")
+	}
+	if c.Rules.IP < 1 || c.Rules.URI < 1 || c.Rules.Errors < 1 || c.Rules.BackendErrors < 1 || c.Rules.DependencyErrors < 1 || c.Rules.NginxBurst < 1 || c.Rules.Latency <= 0 || c.Rules.BaselineMultiplier <= 1 {
+		return c, fmt.Errorf("invalid thresholds")
 	}
 	if c.AI.Provider != "" && (c.AI.Provider != "openai" && c.AI.Provider != "claude" || c.AI.Model == "" || c.AI.DailyRequests < 1 || c.AI.Timeout <= 0) {
 		return c, fmt.Errorf("invalid AI settings")
@@ -101,6 +106,9 @@ func Load(path string) (Config, error) {
 		u, e := url.Parse(s.URL)
 		if !identifier.MatchString(s.Name) || seen[s.Name] || s.Environment == "" || e != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") {
 			return c, fmt.Errorf("invalid source %q", s.Name)
+		}
+		if s.Username != "" && (s.Kind != "elasticsearch" || s.CredentialEnv == "" || !identifier.MatchString(s.Username)) {
+			return c, fmt.Errorf("invalid Elasticsearch username or missing credential_env for %s", s.Name)
 		}
 		if s.CredentialEnv != "" && os.Getenv(s.CredentialEnv) == "" {
 			return c, fmt.Errorf("missing credential for %s", s.Name)

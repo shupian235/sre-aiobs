@@ -31,6 +31,7 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 | 环境 | 部署入口 |
 | --- | --- |
+| 单机打包部署 | [单机部署包](docs/deployment.md#单机部署包)，解压后运行 `./deploy/single-node/start.sh` |
 | 内网服务器或单机 | [Docker Compose](docs/deployment.md#docker-compose)，包含 PostgreSQL、Redis、数据库迁移和 Go 服务 |
 | Kubernetes | [Kubernetes](docs/deployment.md#kubernetes)，使用集群可访问的 PostgreSQL、Redis、Elasticsearch 或 Loki |
 
@@ -117,3 +118,28 @@ routes:
 ### VictoriaMetrics 窗口指标
 
 可选接入 VictoriaMetrics 保存每个探测窗口的日志量、风险事件数、最高评分和探测完成标记。看板异常详情、Slack、Telegram 和邮件报告可提供同源、同粒度的时间序列查询链接。[部署方式](docs/deployment.md#victoriametrics)
+
+### Grafana 延迟与异常仪表盘
+
+提供 P50、P95、P99 独立图和对比图，以及 P95 越限、风险事件和最高风险评分图。支持按日志源和窗口粒度筛选。[导入或启动 Grafana](docs/deployment.md#grafana-延迟与异常图)
+
+<details>
+<summary>查看 P50、P95、P99 和异常图预览（示例数据）</summary>
+
+![P50 窗口延迟示例](docs/preview/images/grafana-p50.png)
+
+![P95 窗口延迟与越限阈值示例](docs/preview/images/grafana-p95.png)
+
+![P99 窗口延迟示例](docs/preview/images/grafana-p99.png)
+
+![P50、P95 和 P99 对比示例](docs/preview/images/grafana-percentile-comparison.png)
+
+![P95 越限、风险事件数量与最高评分示例](docs/preview/images/grafana-anomalies.png)
+
+</details>
+
+### Nginx Access 日志看板与 Filebeat
+
+新装环境运行 `./deploy/single-node/start.sh --with-nginx-collector`，可启动带 Elasticsearch 的完整服务栈和同机 Nginx 采集。Grafana 自动配置「Nginx Access 日志看板」，包含 QPS、状态码、延迟、域名、服务、流量、风险排查、客户端 IP 和地区分布。多台 Nginx 通过私网 HTTPS 接入，使用 Ansible 分批部署采集端。[启动命令、索引映射和批量采集说明](docs/deployment.md#elasticsearch-与-nginx-批量采集)
+
+![Grafana Nginx 流量、状态码、地区和 IP 模拟数据预览](docs/preview/images/grafana-nginx-traffic.png)

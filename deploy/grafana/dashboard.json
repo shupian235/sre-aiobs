@@ -1,12 +1,715 @@
 {
-  "title": "SRE AIObs",
-  "uid": "sre-aiobs",
-  "schemaVersion": 39,
-  "refresh": "30s",
-  "time": {"from": "now-6h", "to": "now"},
-  "templating": {"list": [{"name": "prometheus", "type": "datasource", "query": "prometheus"}]},
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
   "panels": [
-    {"id": 1, "type": "timeseries", "title": "任务速率", "datasource": {"type":"prometheus","uid":"${prometheus}"}, "gridPos": {"x":0,"y":0,"w":12,"h":8}, "targets":[{"refId":"A","expr":"sum(rate(sre_aiobs_runs_total[5m]))"}]},
-    {"id": 2, "type": "timeseries", "title": "失败任务与 AI 调用", "datasource": {"type":"prometheus","uid":"${prometheus}"}, "gridPos": {"x":12,"y":0,"w":12,"h":8}, "targets":[{"refId":"A","expr":"sum(increase(sre_aiobs_run_failures_total[15m]))","legendFormat":"任务"},{"refId":"B","expr":"sum(increase(sre_aiobs_ai_failures_total[15m]))","legendFormat":"AI"}]}
-  ]
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "P50 窗口延迟",
+      "description": "在选中的单个探测窗口内，按日志源计算 P50。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_seconds{source=~\"${source:regex}\",kind=\"$kind\",quantile=\"0.50\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "P95 窗口延迟",
+      "description": "在选中的单个探测窗口内，按日志源计算 P95。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_seconds{source=~\"${source:regex}\",kind=\"$kind\",quantile=\"0.95\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "P99 窗口延迟",
+      "description": "在选中的单个探测窗口内，按日志源计算 P99。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_seconds{source=~\"${source:regex}\",kind=\"$kind\",quantile=\"0.99\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "P50 / P95 / P99 对比",
+      "description": "0.50、0.95、0.99 分别对应 P50、P95、P99。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_seconds{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}} · {{quantile}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "P95 与延迟异常阈值",
+      "description": "阈值取该任务窗口的延迟规则配置。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_seconds{source=~\"${source:regex}\",kind=\"$kind\",quantile=\"0.95\"}",
+          "legendFormat": "{{source}} · P95",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_threshold_seconds{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}} · 阈值",
+          "refId": "B",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "P95 延迟异常窗口",
+      "description": "1 为 P95 达到阈值，0 为低于阈值，无延迟样本的窗口留空。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_latency_p95_breach{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "风险事件与高风险事件",
+      "description": "每个探测窗口的风险事件数，高风险为评分 ≥80。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_risk_events{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}} · 所有事件",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_high_risk_events{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}} · 高风险",
+          "refId": "B",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "窗口最高风险评分",
+      "description": "每个窗口的最高风险评分。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_max_risk_score{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "日志量",
+      "description": "每个探测窗口读取的日志条数。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_logs{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "任务速率",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(sre_aiobs_runs_total[5m]))"
+        }
+      ],
+      "description": "由 Prometheus 兼容采集器抓取 sre-aiobs 的 /metrics 后展示。"
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "失败任务与 AI 调用",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(sre_aiobs_run_failures_total[15m]))",
+          "legendFormat": "任务"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(sre_aiobs_ai_failures_total[15m]))",
+          "legendFormat": "AI"
+        }
+      ],
+      "description": "由 Prometheus 兼容采集器抓取 sre-aiobs 的 /metrics 后展示。"
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "QPS / RPS（巡检窗口平均）",
+      "description": "窗口内请求数除以窗口秒数。包含所有巡检日志。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "expr": "sre_aiobs_window_qps{source=~\"${source:regex}\",kind=\"$kind\"}",
+          "legendFormat": "{{source}}",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": [
+    "sre-aiobs",
+    "victoriametrics"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "title": "SRE AIObs · 延迟与异常",
+  "uid": "sre-aiobs",
+  "version": 2,
+  "templating": {
+    "list": [
+      {
+        "name": "prometheus",
+        "type": "datasource",
+        "label": "指标数据源",
+        "query": "prometheus",
+        "current": {
+          "text": "VictoriaMetrics",
+          "value": "victoriametrics"
+        },
+        "refresh": 1
+      },
+      {
+        "name": "source",
+        "type": "query",
+        "label": "日志源",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "query": {
+          "query": "label_values(sre_aiobs_window_logs, source)",
+          "refId": "source"
+        },
+        "definition": "label_values(sre_aiobs_window_logs, source)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "sort": 1
+      },
+      {
+        "name": "kind",
+        "type": "custom",
+        "label": "窗口粒度",
+        "query": "minute,five_minutes,hour,day",
+        "options": [
+          {
+            "selected": false,
+            "text": "minute",
+            "value": "minute"
+          },
+          {
+            "selected": true,
+            "text": "five_minutes",
+            "value": "five_minutes"
+          },
+          {
+            "selected": false,
+            "text": "hour",
+            "value": "hour"
+          },
+          {
+            "selected": false,
+            "text": "day",
+            "value": "day"
+          }
+        ],
+        "current": {
+          "text": "five_minutes",
+          "value": "five_minutes"
+        }
+      }
+    ]
+  }
 }

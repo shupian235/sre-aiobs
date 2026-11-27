@@ -1,0 +1,42 @@
+listen: ":8080"
+sources:
+  - name: nginx-local
+    kind: elasticsearch
+    environment: internal
+    url: http://elasticsearch:9200
+    index: nginx-access-*
+    username: sre_aiobs_reader
+    credential_env: ELASTICSEARCH_READER_PASSWORD
+    fields:
+      timestamp: "@timestamp"
+      ip: client_ip
+      uri: request_uri
+      host: nginx_host
+      ua: user_agent
+      status: status
+      latency: request_time
+      method: method
+      tls: tls_protocol
+      upstream: upstream_status
+  - name: application-local
+    kind: elasticsearch
+    environment: internal
+    url: http://elasticsearch:9200
+    index: app-logs-*
+    username: sre_aiobs_reader
+    credential_env: ELASTICSEARCH_READER_PASSWORD
+    fields:
+      timestamp: "@timestamp"
+      level: level
+      exception: exception_type
+      dependency: dependency_failure
+  - name: vulnerabilities-local
+    kind: elasticsearch
+    environment: internal
+    url: http://elasticsearch:9200
+    index: vulnerability-findings-*
+    username: sre_aiobs_reader
+    credential_env: ELASTICSEARCH_READER_PASSWORD
+    fields:
+      timestamp: "@timestamp"
+      vulnerability: vulnerability_id

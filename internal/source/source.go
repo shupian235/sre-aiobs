@@ -43,10 +43,14 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 	}
 	if secret := os.Getenv(c.Config.CredentialEnv); secret != "" {
 		scheme := "Bearer"
-		if c.Config.Kind == "elasticsearch" {
-			scheme = "ApiKey"
+		if c.Config.Username != "" {
+			req.SetBasicAuth(c.Config.Username, secret)
+		} else {
+			if c.Config.Kind == "elasticsearch" {
+				scheme = "ApiKey"
+			}
+			req.Header.Set("Authorization", scheme+" "+secret)
 		}
-		req.Header.Set("Authorization", scheme+" "+secret)
 	}
 	if c.Config.Tenant != "" {
 		req.Header.Set("X-Scope-OrgID", c.Config.Tenant)
@@ -78,8 +82,8 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 	query := object{"range": object{c.Config.Fields["timestamp"]: object{"gte": w.Start, "lt": w.End}}}
 	path := "/" + c.Config.Index + "/_search?allow_partial_search_results=false"
 	var err error
-	result.Total, err = c.elasticTotal(ctx, path, query)
-	if err != nil {
+	result.Total, result.OverallLatency, err = c.elasticWindow(ctx, path, query, c.Config.Fields["latency"])
+	if err != nil || result.Total == 0 {
 		return result, err
 	}
 	for _, dimension := range dimensions {
@@ -145,19 +149,32 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 	return result, nil
 }
 
-func (c Client) elasticTotal(ctx context.Context, path string, query any) (int64, error) {
+func (c Client) elasticWindow(ctx context.Context, path string, query any, latency string) (int64, map[string]float64, error) {
 	type object = map[string]any
-	var totals struct {
-		TimedOut bool `json:"timed_out"`
-		Hits     struct{ Total struct{ Value int64 } }
+	request := object{"size": 0, "track_total_hits": true, "query": query}
+	if latency != "" {
+		request["aggs"] = object{"latency": object{"percentiles": object{"field": latency, "percents": []int{50, 95, 99}}}}
 	}
-	if err := c.request(ctx, "POST", path, object{"size": 0, "track_total_hits": true, "query": query}, &totals); err != nil {
-		return 0, err
+	var totals struct {
+		TimedOut     bool `json:"timed_out"`
+		Hits         struct{ Total struct{ Value int64 } }
+		Aggregations struct {
+			Latency struct{ Values map[string]*float64 }
+		}
+	}
+	if err := c.request(ctx, "POST", path, request, &totals); err != nil {
+		return 0, nil, err
 	}
 	if totals.TimedOut {
-		return 0, fmt.Errorf("Elasticsearch totals query timed out")
+		return 0, nil, fmt.Errorf("Elasticsearch totals query timed out")
 	}
-	return totals.Hits.Total.Value, nil
+	overall := map[string]float64{}
+	for _, key := range []string{"50.0", "95.0", "99.0"} {
+		if value := totals.Aggregations.Latency.Values[key]; value != nil && *value >= 0 {
+			overall[key] = *value
+		}
+	}
+	return totals.Hits.Total.Value, overall, nil
 }
 
 func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot, error) {
@@ -200,6 +217,26 @@ func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot,
 		}
 	}
 	uri, latency := c.Config.Fields["uri"], c.Config.Fields["latency"]
+	if latency != "" {
+		result.OverallLatency = map[string]float64{}
+		for _, p := range []string{"50", "95", "99"} {
+			// Empty grouping combines all matching streams before calculating the percentile.
+			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by ()", p, c.Config.Selector, latency, duration)
+			samples := 0
+			if err := evaluate(query, func(_ map[string]string, v float64) {
+				samples++
+				if v >= 0 {
+					result.OverallLatency[p+".0"] = v
+				}
+			}); err != nil {
+				return result, err
+			}
+			if samples > 1 {
+				return result, fmt.Errorf("Loki returned multiple window latency aggregates")
+			}
+		}
+	}
+
 	if uri != "" && latency != "" {
 		for _, p := range []string{"50", "95", "99"} {
 			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by (%s)", p, c.Config.Selector, latency, duration, uri)
@@ -259,5 +296,6 @@ func (c Client) Check(ctx context.Context, end time.Time) (int64, error) {
 		return total, err
 	}
 	query := map[string]any{"range": map[string]any{c.Config.Fields["timestamp"]: map[string]any{"gte": w.Start, "lt": w.End}}}
-	return c.elasticTotal(ctx, "/"+c.Config.Index+"/_search?allow_partial_search_results=false", query)
+	total, _, err := c.elasticWindow(ctx, "/"+c.Config.Index+"/_search?allow_partial_search_results=false", query, "")
+	return total, err
 }

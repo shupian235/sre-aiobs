@@ -3,3 +3,7 @@
 config.yaml
 *.mmdb
 /sre-aiobs
+
+/dist/
+/deploy/collectors/inventory.ini
+/deploy/collectors/vault.yml

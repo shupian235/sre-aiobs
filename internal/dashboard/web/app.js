@@ -62,7 +62,7 @@ function showDetail(record,metricsLinks) {
   const content = byId("detail-content");
   content.replaceChildren(list);
   if (metricsLinks && /^[0-9a-f]{32}$/.test(record.id)) {
-    const link=element("a","查看 VictoriaMetrics 窗口指标","detail-link");
+    const link=element("a","查看窗口指标","detail-link");
     link.href="/api/metrics-link/"+encodeURIComponent(record.id);
     link.target="_blank";
     link.rel="noopener noreferrer";

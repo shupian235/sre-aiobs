@@ -14,6 +14,7 @@ export TEST_ES_PORT="${TEST_ES_PORT:-19200}"
 export AIOBS_PORT="${AIOBS_PORT:-18080}"
 export COMPOSE_PROJECT_NAME="sre-aiobs-it-$(openssl rand -hex 8)"
 compose=(docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yaml -f tests/compose.integration.yaml)
+export GRAFANA_URL=""
 export VICTORIAMETRICS_WRITE_URL=""
 export VICTORIAMETRICS_READ_URL=""
 export VICTORIAMETRICS_WRITE_TOKEN=""
@@ -125,10 +126,15 @@ if [[ "${TEST_VICTORIAMETRICS:-0}" == 1 ]]; then
 import json, sys
 data = json.load(sys.stdin)
 expected_end = int(sys.argv[1])
-series = {row["metric"]["__name__"]: dict(row["values"]) for row in data["data"]["result"]}
-logs = series.get("sre_aiobs_window_logs", {})
-evaluated = series.get("sre_aiobs_window_evaluated", {})
-sys.exit(logs.get(expected_end) != "7" or evaluated.get(expected_end) != "1")
+series = {(row["metric"]["__name__"], row["metric"].get("quantile")): dict(row["values"]) for row in data["data"]["result"]}
+logs = series.get(("sre_aiobs_window_logs", None), {})
+evaluated = series.get(("sre_aiobs_window_evaluated", None), {})
+latency = [series.get(("sre_aiobs_window_latency_seconds", q), {}).get(expected_end) for q in ("0.50", "0.95", "0.99")]
+breach = series.get(("sre_aiobs_window_latency_p95_breach", None), {})
+if logs.get(expected_end) != "7" or evaluated.get(expected_end) != "1" or breach.get(expected_end) != "1" or any(v is None for v in latency):
+    sys.exit(1)
+values = list(map(float, latency))
+sys.exit(not (0 < values[0] <= values[1] <= values[2]))
 ' "$window_end"; then exit 0; fi
     sleep 1
   done

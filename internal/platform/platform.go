@@ -11,9 +11,10 @@ type Bucket struct {
 	Count            int64
 }
 type Snapshot struct {
-	Total   int64
-	Buckets []Bucket
-	Latency map[string]map[string]float64
+	Total          int64
+	Buckets        []Bucket
+	Latency        map[string]map[string]float64
+	OverallLatency map[string]float64
 }
 
 const VulnerabilityRule = "scanner_vulnerability"
@@ -31,6 +32,7 @@ type Analysis struct {
 	Actions  []string `json:"actions"`
 }
 type Report struct {
+	LatencyThreshold           float64
 	MetricsURL                 string
 	VulnerabilityScan          bool
 	Source, Index, Environment string

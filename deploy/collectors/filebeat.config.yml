@@ -1,0 +1,34 @@
+filebeat.inputs:
+  - type: filestream
+    id: sre-aiobs-nginx-access
+    paths:
+      - "/var/log/sre-nginx/${NGINX_LOG_GLOB:access.log}"
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
+processors:
+  - drop_event:
+      when:
+        not:
+          or:
+            - has_fields: [request_uri]
+            - has_fields: [request_path]
+  - timestamp:
+      field: nginx_time
+      layouts: ['2006-01-02T15:04:05Z07:00']
+      ignore_missing: true
+      ignore_failure: true
+  - drop_fields:
+      fields: [message, nginx_time]
+      ignore_missing: true
+
+setup.ilm.enabled: false
+setup.template.enabled: false
+output.elasticsearch:
+  hosts: ["${ES_INGEST_URL}"]
+  username: "${ES_INGEST_USER:sre_aiobs_ingest}"
+  password: "${ELASTICSEARCH_INGEST_PASSWORD}"
+  index: "nginx-access-%{+yyyy.MM.dd}"
+  ssl.verification_mode: full

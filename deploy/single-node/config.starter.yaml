@@ -1,0 +1,3 @@
+listen: ":8080"
+allow_empty_sources: true
+sources: []

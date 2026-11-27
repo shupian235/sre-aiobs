@@ -1,0 +1,61 @@
+---
+- name: Deploy Nginx Filebeat collectors
+  hosts: nginx_collectors
+  become: true
+  serial: 5
+  tasks:
+    - name: Validate collector configuration
+      ansible.builtin.assert:
+        that:
+          - collector_elasticsearch_url is match('^https://[A-Za-z0-9.-]+(:[0-9]+)?$')
+          - collector_log_dir is match('^/[A-Za-z0-9_./-]+$')
+          - collector_log_glob is match('^[A-Za-z0-9_.*?-]+$')
+          - collector_elasticsearch_password is match('^[A-Fa-f0-9]{32,128}$')
+      no_log: true
+    - name: Check Nginx log directory
+      ansible.builtin.stat:
+        path: "{{ collector_log_dir }}"
+      register: log_directory
+    - name: Require the Nginx log directory
+      ansible.builtin.assert:
+        that: log_directory.stat.isdir | default(false)
+    - name: Create collector directory
+      ansible.builtin.file:
+        path: /opt/sre-aiobs-collector
+        state: directory
+        mode: '0700'
+    - name: Install optional private CA certificate
+      ansible.builtin.copy:
+        src: "{{ collector_ca_file }}"
+        dest: /opt/sre-aiobs-collector/ca.crt
+        mode: '0644'
+      when: collector_ca_file is defined
+      register: collector_ca
+    - name: Install Filebeat configuration
+      ansible.builtin.copy:
+        dest: /opt/sre-aiobs-collector/filebeat.yml
+        mode: '0600'
+        content: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/filebeat.config.yml') ~ ('\n  ssl.certificate_authorities: [\"/etc/pki/tls/certs/sre-aiobs-ca.crt\"]' if collector_ca_file is defined else '') ~ '\n' }}"
+      register: collector_config
+    - name: Install collector environment
+      ansible.builtin.copy:
+        dest: /opt/sre-aiobs-collector/collector.env
+        mode: '0600'
+        content: |
+          ES_INGEST_URL={{ collector_elasticsearch_url }}
+          ELASTICSEARCH_INGEST_PASSWORD={{ collector_elasticsearch_password }}
+          NGINX_LOG_GLOB={{ collector_log_glob }}
+      no_log: true
+      register: collector_env
+    - name: Install Compose file
+      ansible.builtin.template:
+        src: compose.yaml.j2
+        dest: /opt/sre-aiobs-collector/compose.yaml
+        mode: '0600'
+      register: collector_compose
+    - name: Start or update Filebeat
+      ansible.builtin.command:
+        cmd: "docker compose up -d --wait{{ ' --force-recreate' if (collector_ca.changed or collector_config.changed or collector_env.changed or collector_compose.changed) else '' }}"
+        chdir: /opt/sre-aiobs-collector
+      register: collector_up
+      changed_when: "'Created' in collector_up.stderr or 'Started' in collector_up.stderr or 'Recreated' in collector_up.stderr"

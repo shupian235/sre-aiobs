@@ -1,0 +1,12 @@
+services:
+  elasticsearch-ingress:
+    image: nginx:1.28-alpine
+    ports:
+      - "${ES_INGEST_BIND:-127.0.0.1}:${ES_INGEST_PORT:-9443}:443"
+    volumes:
+      - ./deploy/elasticsearch/ingress.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${ES_INGEST_CERT:?set ES_INGEST_CERT}:/etc/nginx/tls/tls.crt:ro
+      - ${ES_INGEST_KEY:?set ES_INGEST_KEY}:/etc/nginx/tls/tls.key:ro
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully

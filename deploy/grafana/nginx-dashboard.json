@@ -1,0 +1,1676 @@
+{
+  "uid": "sre-aiobs-nginx",
+  "title": "Nginx Access 日志看板",
+  "tags": [
+    "sre-aiobs",
+    "nginx",
+    "elasticsearch"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "总请求量",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "平均响应时间",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "avg",
+              "field": "request_time"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "错误率（4xx + 5xx）",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "P99 响应时间（2xx）",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:[200 TO 299])",
+          "timeField": "@timestamp",
+          "bucketAggs": [],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "percentiles",
+              "field": "request_time",
+              "settings": {
+                "percents": [
+                  99
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "总请求量趋势",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "请求量"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "QPS / RPS（每分钟平均）",
+      "description": "每个对齐的一分钟桶的请求数除以 60。范围两端的部分分钟可能低估。",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "1m",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count",
+              "hide": true
+            },
+            {
+              "id": "2",
+              "type": "bucket_script",
+              "settings": {
+                "script": "params.requests / 60.0"
+              },
+              "pipelineVariables": [
+                {
+                  "name": "requests",
+                  "pipelineAgg": "1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "响应时间 P50 / P95 / P99",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "percentiles",
+              "field": "request_time",
+              "settings": {
+                "percents": [
+                  50,
+                  95,
+                  99
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "请求量趋势（按域名）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "nginx_host",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "请求量趋势（按服务）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "service",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "响应时间 P99（按服务）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "service",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "percentiles",
+              "field": "request_time",
+              "settings": {
+                "percents": [
+                  99
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "请求量趋势（按采集主机）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "log_hostname",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "状态码分布",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "status",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "HTTP 方法分布",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "method",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "4xx / 499 / 5xx 错误趋势",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:[400 TO 499])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "4xx"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:499)",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "499"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:[500 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "5xx"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "可疑 User-Agent 趋势",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (NOT _exists_:user_agent OR user_agent:\"\" OR user_agent:/((curl|wget|python-requests|sqlmap).*)/)",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Top 15 接口（请求量）",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "request_path",
+              "settings": {
+                "size": "15",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Top 15 出错接口（4xx + 5xx）",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:[400 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "request_path",
+              "settings": {
+                "size": "15",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Top 15 接口延迟（按请求量排序）",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (request_time:[0.001 TO *])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "request_path",
+              "settings": {
+                "size": "15",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "avg",
+              "field": "request_time"
+            },
+            {
+              "id": "3",
+              "type": "max",
+              "field": "request_time"
+            },
+            {
+              "id": "4",
+              "type": "percentiles",
+              "field": "request_time",
+              "settings": {
+                "percents": [
+                  95
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Top 10 User-Agent",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "user_agent",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Top 10 域名",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "nginx_host",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "域名 × URI Top 请求",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "nginx_host",
+              "settings": {
+                "size": "10",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "21",
+              "type": "terms",
+              "field": "request_path",
+              "settings": {
+                "size": "5",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "来源国家分布",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "来源地区分布",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 77,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.region_iso_code",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Top 20 Client IP",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 85,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_ip",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "Top 20 错误请求 IP",
+      "description": "按错误请求量排序。检测确认的异常事件可在 SRE AIOps 运维看板查看。",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 85,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw} AND (status:[400 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_ip",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "服务错误率",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 93,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "service",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "域名错误率",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 93,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "nginx_host",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "title": "响应体出流量",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 101,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "${traffic_filter:raw}",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "sum",
+              "field": "body_bytes_sent"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "traffic_filter",
+        "label": "流量过滤（Lucene）",
+        "type": "textbox",
+        "query": "* AND NOT request_path:\"/ws/v1/\" AND NOT service:\"cb\" AND NOT user_agent:\"ELB-HealthChecker/2.0\"",
+        "current": {
+          "selected": false,
+          "text": "* AND NOT request_path:\"/ws/v1/\" AND NOT service:\"cb\" AND NOT user_agent:\"ELB-HealthChecker/2.0\"",
+          "value": "* AND NOT request_path:\"/ws/v1/\" AND NOT service:\"cb\" AND NOT user_agent:\"ELB-HealthChecker/2.0\""
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "巡检异常与窗口指标",
+      "type": "link",
+      "url": "/d/sre-aiobs/sre-aiobs",
+      "keepTime": true
+    }
+  ]
+}

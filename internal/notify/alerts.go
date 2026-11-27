@@ -37,7 +37,7 @@ func (s Service) Slack(ctx context.Context, r platform.Report, settings platform
 		blocks := []map[string]any{{"type": "section", "text": map[string]string{"type": "plain_text", "text": text}}}
 		if r.MetricsURL != "" {
 			blocks = append(blocks, map[string]any{"type": "actions", "elements": []map[string]any{
-				{"type": "button", "text": map[string]string{"type": "plain_text", "text": "查看 VictoriaMetrics"}, "url": r.MetricsURL},
+				{"type": "button", "text": map[string]string{"type": "plain_text", "text": "查看窗口指标"}, "url": r.MetricsURL},
 			}})
 		}
 		payload := map[string]any{"text": "SRE AIObs 安全告警", "blocks": blocks}
@@ -92,7 +92,7 @@ func (s Service) deliverAlert(ctx context.Context, channel string, r platform.Re
 	}
 	message := fmt.Sprintf("%s (%s)\n%s", r.Source, r.Environment, strings.Join(lines, "\n"))
 	if channel != "slack" && r.MetricsURL != "" {
-		message += "\nVictoriaMetrics: " + r.MetricsURL
+		message += "\n窗口指标: " + r.MetricsURL
 	}
 	err := send(ctx, message)
 	success = err == nil

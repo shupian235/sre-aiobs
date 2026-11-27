@@ -1,0 +1,85 @@
+{
+  "index_patterns": [
+    "nginx-access-*"
+  ],
+  "priority": 150,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.default_pipeline": "sre_aiobs_nginx_geoip"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "client_ip": {
+          "type": "ip",
+          "ignore_malformed": true
+        },
+        "request_uri": {
+          "type": "keyword",
+          "ignore_above": 4096
+        },
+        "nginx_host": {
+          "type": "keyword"
+        },
+        "user_agent": {
+          "type": "keyword",
+          "ignore_above": 1024
+        },
+        "status": {
+          "type": "integer",
+          "ignore_malformed": true
+        },
+        "request_time": {
+          "type": "double",
+          "ignore_malformed": true
+        },
+        "method": {
+          "type": "keyword"
+        },
+        "tls_protocol": {
+          "type": "keyword"
+        },
+        "upstream_status": {
+          "type": "keyword"
+        },
+        "client_geo": {
+          "properties": {
+            "country_iso_code": {
+              "type": "keyword"
+            },
+            "region_iso_code": {
+              "type": "keyword"
+            },
+            "country_name": {
+              "type": "keyword"
+            }
+          }
+        },
+        "request_path": {
+          "type": "keyword",
+          "ignore_above": 1024
+        },
+        "service": {
+          "type": "keyword",
+          "ignore_above": 1024
+        },
+        "log_hostname": {
+          "type": "keyword",
+          "ignore_above": 1024
+        },
+        "body_bytes_sent": {
+          "type": "long",
+          "ignore_malformed": true
+        },
+        "error_rate_sample": {
+          "type": "short",
+          "ignore_malformed": true
+        }
+      }
+    }
+  }
+}
