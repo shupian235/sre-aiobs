@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"errors"
 	"html/template"
 	"net/http"
@@ -44,14 +45,20 @@ type latencyRow struct {
 
 type reportView struct {
 	platform.Report
-	Regions            map[string]int
-	Sensitive          int64
-	Latency            []latencyRow
-	Vulnerabilities    []platform.Event
-	VulnerabilityTotal int
+	Regions                     map[string]int
+	Sensitive                   int64
+	Latency                     []latencyRow
+	Vulnerabilities             []platform.Event
+	VulnerabilityTotal          int
+	SecurityEvents              []platform.Event
+	SecurityTotal, SecurityHigh int
+	Title                       string
 }
 
-var htmlReport = template.Must(template.New("report").Parse(`<!doctype html><html><body><h1>日志探测报告</h1><p>{{.Source}} / {{.Index}} / {{.Environment}}</p><p>{{.Window.Start}} 至 {{.Window.End}}</p><p>原始日志量 {{.Snapshot.Total}}，敏感 URI 事件请求量 {{.Sensitive}}</p>{{if .VulnerabilityScan}}<h2>漏洞扫描发现</h2><p>本窗口共 {{.VulnerabilityTotal}} 个 CVE，最多展示 100 项。</p>{{if .Vulnerabilities}}<table><tr><th>CVE</th><th>扫描记录数</th></tr>{{range .Vulnerabilities}}<tr><td>{{.Target}}</td><td>{{.Count}}</td></tr>{{end}}</table>{{else}}<p>本窗口未收到符合条件的 CVE 记录。</p>{{end}}{{end}}<h2>地区分布</h2><ul>{{range $region,$count := .Regions}}<li>{{$region}} {{$count}}</li>{{end}}</ul><h2>风险事件与异常 IP</h2><table><tr><th>规则</th><th>目标标识</th><th>IP</th><th>国家</th><th>地区</th><th>次数</th><th>风险</th></tr>{{range .Events}}<tr><td>{{.Rule}}</td><td>{{.Target}}</td><td>{{.IP}}</td><td>{{.Country}}</td><td>{{.Region}}</td><td>{{.Count}}</td><td>{{.Score}}</td></tr>{{end}}</table><h2>接口响应时间（秒）</h2><table><tr><th>接口标识</th><th>P50</th><th>P95</th><th>P99</th></tr>{{range .Latency}}<tr><td>{{.Endpoint}}</td><td>{{.P50}}</td><td>{{.P95}}</td><td>{{.P99}}</td></tr>{{end}}</table>{{with .Analysis}}<h2>AI 分析</h2><p>{{.Severity}} {{.Summary}}</p><ul>{{range .Actions}}<li>{{.}}</li>{{end}}</ul>{{end}}</body></html>`))
+//go:embed report-email.html
+var emailTemplate string
+
+var htmlReport = template.Must(template.New("report").Parse(emailTemplate))
 
 func (s Service) Email(ctx context.Context, destination platform.EmailDestination, r platform.Report) error {
 	if !destination.Configured() {
@@ -71,20 +78,56 @@ func (s Service) Email(ctx context.Context, destination platform.EmailDestinatio
 		view.Latency = view.Latency[:20]
 	}
 	unique := map[string]bool{}
+	securityRules := map[string]bool{}
+	for _, rule := range platform.NginxRules() {
+		securityRules[rule] = true
+	}
+	view.Events = nil
 	for _, e := range r.Events {
-		if e.Rule == platform.VulnerabilityRule {
+		switch {
+		case e.Rule == platform.VulnerabilityRule:
 			view.VulnerabilityTotal++
 			if len(view.Vulnerabilities) < 100 {
 				view.Vulnerabilities = append(view.Vulnerabilities, e)
 			}
+		case securityRules[e.Rule]:
+			view.SecurityTotal++
+			if e.Score >= 80 {
+				view.SecurityHigh++
+			}
+			if len(view.SecurityEvents) < 100 {
+				view.SecurityEvents = append(view.SecurityEvents, e)
+			}
+		default:
+			view.Events = append(view.Events, e)
 		}
 		if e.Rule == "sensitive_uri" && e.IP == "" {
 			view.Sensitive += e.Count
 		}
 		if e.IP != "" && !unique[e.IP] {
-			view.Regions[e.Country+" "+e.Region]++
+			region := e.Country + " " + e.Region
+			if region == " " {
+				region = "未知地区"
+			}
+			view.Regions[region]++
 			unique[e.IP] = true
 		}
+	}
+	view.NginxSecurity = view.NginxSecurity || view.SecurityTotal > 0
+	view.VulnerabilityScan = view.VulnerabilityScan || view.VulnerabilityTotal > 0
+	period := "小时报告"
+	if r.Window.End.Sub(r.Window.Start) == 24*time.Hour {
+		period = "日报"
+	}
+	switch {
+	case view.NginxSecurity && view.VulnerabilityScan:
+		view.Title = "安全与漏洞巡检" + period
+	case view.VulnerabilityScan:
+		view.Title = "漏洞巡检" + period
+	case view.NginxSecurity:
+		view.Title = "Nginx 安全巡检" + period
+	default:
+		view.Title = "日志探测" + period
 	}
 	if len(view.Events) > 200 {
 		view.Events = view.Events[:200]
@@ -93,14 +136,7 @@ func (s Service) Email(ctx context.Context, destination platform.EmailDestinatio
 	if err := htmlReport.Execute(&body, view); err != nil {
 		return err
 	}
-	subject := "Log detection report " + r.Source
-	if r.VulnerabilityScan {
-		period := "小时报告"
-		if r.Window.End.Sub(r.Window.Start) == 24*time.Hour {
-			period = "日报"
-		}
-		subject = "漏洞检测" + period + " · " + r.Source
-	}
+	subject := view.Title + " · " + r.Source
 	_, err := s.SES.SendEmail(ctx, &sesv2.SendEmailInput{
 		FromEmailAddress: aws.String(destination.From), Destination: &types.Destination{ToAddresses: destination.To},
 		Content: &types.EmailContent{Simple: &types.Message{Subject: &types.Content{Data: aws.String(subject), Charset: aws.String("UTF-8")},

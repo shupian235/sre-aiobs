@@ -36,6 +36,8 @@ type Analysis struct {
 }
 type Report struct {
 	VulnerabilityScan          bool
+	NginxSecurity              bool
+	RunID                      string
 	Source, Index, Environment string
 	Window                     Window
 	Snapshot                   Snapshot

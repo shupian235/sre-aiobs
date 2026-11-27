@@ -76,7 +76,11 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 	if err != nil {
 		return err
 	}
-	report := platform.Report{VulnerabilityScan: s.Fields["vulnerability"] != "", Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window}
+	report := platform.Report{
+		RunID: j.ID, Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window,
+		VulnerabilityScan: s.Fields["vulnerability"] != "",
+		NginxSecurity:     s.Fields["uri"] != "" || s.Fields["waf"] != "" || s.Fields["wafrule"] != "",
+	}
 	if !saved {
 		snapshot, err = (source.Client{Config: s, HTTP: r.HTTP}).Aggregate(ctx, j.Window)
 		if err != nil {

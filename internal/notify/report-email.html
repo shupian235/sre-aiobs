@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<body style="margin:24px;font:15px system-ui,sans-serif;color:#182b45">
+<h1>{{.Title}}</h1>
+<p>来源 {{.Source}} · 索引 {{.Index}} · 环境 {{.Environment}}</p>
+<p>巡检窗口 {{.Window.Start}} 至 {{.Window.End}}</p>
+{{if .RunID}}<p>Run ID <code>{{.RunID}}</code></p>{{end}}
+<p>原始日志 {{.Snapshot.Total}} 条 · 敏感 URI 事件请求量 {{.Sensitive}}</p>
+{{if .NginxSecurity}}
+<h2>Nginx 安全巡检</h2>
+<p>共 {{.SecurityTotal}} 个规则事件，其中 {{.SecurityHigh}} 个高风险事件。最多展示 100 项。</p>
+{{if .SecurityEvents}}{{template "events" .SecurityEvents}}{{else}}<p>本窗口没有命中安全规则。</p>{{end}}
+{{end}}
+{{if .VulnerabilityScan}}
+<h2>漏洞扫描发现</h2>
+<p>本窗口共 {{.VulnerabilityTotal}} 个 CVE，最多展示 100 项。</p>
+{{if .Vulnerabilities}}
+<table cellspacing="0" cellpadding="6" border="1" style="border-collapse:collapse"><thead><tr><th>CVE</th><th>扫描记录数</th></tr></thead>
+<tbody>{{range .Vulnerabilities}}<tr><td>{{.Target}}</td><td>{{.Count}}</td></tr>{{end}}</tbody></table>
+{{else}}<p>本窗口未收到符合条件的 CVE 记录。</p>{{end}}
+{{end}}
+{{if .Regions}}<h2>地区分布（去重客户端 IP）</h2><ul>{{range $region,$count := .Regions}}<li>{{$region}} {{$count}}</li>{{end}}</ul>{{end}}
+{{if .Events}}<h2>其他风险事件</h2>{{template "events" .Events}}{{end}}
+{{if .Latency}}
+<h2>接口响应时间（秒）</h2>
+<table cellspacing="0" cellpadding="6" border="1" style="border-collapse:collapse"><thead><tr><th>接口标识</th><th>P50</th><th>P95</th><th>P99</th></tr></thead>
+<tbody>{{range .Latency}}<tr><td>{{.Endpoint}}</td><td>{{.P50}}</td><td>{{.P95}}</td><td>{{.P99}}</td></tr>{{end}}</tbody></table>
+{{end}}
+{{with .Analysis}}<h2>AI 分析</h2><p>{{.Severity}} {{.Summary}}</p><ul>{{range .Actions}}<li>{{.}}</li>{{end}}</ul>{{end}}
+</body>
+</html>
+{{define "events"}}
+<table cellspacing="0" cellpadding="6" border="1" style="border-collapse:collapse">
+<thead><tr><th>规则</th><th>目标标识</th><th>客户端 IP</th><th>国家</th><th>地区</th><th>次数</th><th>风险评分</th></tr></thead>
+<tbody>{{range .}}<tr><td>{{.Rule}}</td><td>{{.Target}}</td><td>{{.IP}}</td><td>{{.Country}}</td><td>{{.Region}}</td><td>{{.Count}}</td><td>{{.Score}}</td></tr>{{end}}</tbody>
+</table>
+{{end}}
