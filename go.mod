@@ -1,6 +1,6 @@
 module sre-aiobs
 
-go 1.26.11
+go 1.27.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
