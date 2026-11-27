@@ -13,10 +13,11 @@ import (
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
-	Login       *Login
-	MetricsLink MetricsLink
-	Current     func() []config.Source
-	HTTP        *http.Client
+	Login           *Login
+	MetricsLink     MetricsLink
+	Current         func() []config.Source
+	HTTP            *http.Client
+	CheckCloudWatch func(context.Context, string) error
 }
 
 func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Handler) http.HandlerFunc) {
@@ -28,10 +29,11 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 			Environment     string `json:"environment"`
 			Backend         bool   `json:"backend"`
 			Vulnerabilities bool   `json:"vulnerabilities,omitempty"`
+			Routes          bool   `json:"routes,omitempty"`
 		}
 		sources := make([]descriptor, 0)
 		for _, s := range access.Current() {
-			sources = append(sources, descriptor{s.Name, s.Kind, s.Environment, s.Fields["level"] != "" || s.Fields["exception"] != "" || s.Fields["dependency"] != "", s.Fields["vulnerability"] != ""})
+			sources = append(sources, descriptor{s.Name, s.Kind, s.Environment, s.Fields["level"] != "" || s.Fields["exception"] != "" || s.Fields["dependency"] != "" || s.Fields["businesscode"] != "", s.Fields["vulnerability"] != "", s.Fields["uri"] != ""})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(sources)
@@ -59,17 +61,51 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 			http.Error(w, "Source checks busy", 429)
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		timeout := selected.CheckTimeout
+		if timeout == 0 {
+			timeout = 3 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		started := time.Now().UTC()
-		count, err := (source.Client{Config: *selected, HTTP: access.HTTP}).Check(ctx, started)
+		client := source.Client{Config: *selected, HTTP: access.HTTP}
+		var count int64
+		var err error
+		for attempt := 0; ; attempt++ {
+			switch {
+			case selected.IsLogSource():
+				count, err = client.Check(ctx, started)
+			case selected.Kind == "cloudwatch" && access.CheckCloudWatch != nil:
+				err = access.CheckCloudWatch(ctx, selected.Region)
+			default:
+				err = client.Monitor(ctx)
+			}
+			var status source.HTTPStatusError
+			if err == nil || ctx.Err() != nil || attempt >= selected.CheckRetries ||
+				(errors.As(err, &status) && status < 500 && status != 429) {
+				break
+			}
+			timer := time.NewTimer(time.Duration(attempt+1) * 150 * time.Millisecond)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+			}
+			if ctx.Err() != nil {
+				err = ctx.Err()
+				break
+			}
+		}
 		result := struct {
 			Status     string    `json:"status"`
 			Code       string    `json:"code,omitempty"`
 			Count      *int64    `json:"count,omitempty"`
 			DurationMS int64     `json:"duration_ms"`
 			CheckedAt  time.Time `json:"checked_at"`
-		}{Status: "ok", Count: &count, DurationMS: time.Since(started).Milliseconds(), CheckedAt: started}
+		}{Status: "ok", DurationMS: time.Since(started).Milliseconds(), CheckedAt: started}
+		if selected.IsLogSource() {
+			result.Count = &count
+		}
 		if err != nil {
 			result.Status, result.Code, result.Count = "failed", "query_failed", nil
 			var status source.HTTPStatusError

@@ -9,6 +9,7 @@ const labels = new Map(Object.entries({
   unexpected_user_agent:"异常 User-Agent",sensitive_uri:"敏感 URI",sql_injection:"SQL 注入特征",
   xss:"XSS 特征",path_traversal:"路径遍历特征",http_status:"HTTP 状态异常",latency_p95:"P95 延迟异常",correlated:"多维事件关联",
   backend_critical_log:"后端严重日志",backend_error_spike:"后端错误激增",
+  backend_warning_spike:"后端警告激增",backend_business_error_spike:"业务错误码激增",
   backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",
   nginx_sensitive_artifact:"敏感文件探测",nginx_unexpected_method:"异常请求方法",
   nginx_waf_block:"WAF 拦截",nginx_waf_category:"WAF 安全分类",nginx_legacy_tls:"旧版 TLS",
@@ -166,10 +167,13 @@ function render(data) {
     const event=item.event;
     return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)];
   });
-  rows(byId("task-body"),data.tasks,5,item => [
-    item.source,element("span",statuses.get(item.status)||item.status,"pill "+(statuses.has(item.status)?item.status:"")),
-    date.format(new Date(item.window_end)),String(item.attempts),element("span",item.id,"mono")
-  ]);
+  rows(byId("task-body"),data.tasks,5,item=>{
+    const report=element("a",item.id,"mono");
+    report.href="/api/reports/"+encodeURIComponent(item.id);
+    report.title="查看巡检报告";
+    return [item.source,element("span",statuses.get(item.status)||item.status,"pill "+(statuses.has(item.status)?item.status:"")),
+      date.format(new Date(item.window_end)),String(item.attempts),report];
+  });
 }
 
 function riskRating(score) {
@@ -238,7 +242,7 @@ async function checkSource(name,button,status) {
     if (!response.ok) throw new Error(String(response.status));
     const result=await response.json();
     status.textContent=result.status==="ok"
-      ? `可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`
+      ? (result.count===undefined?`连接正常 · ${result.duration_ms} ms`:`可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`)
       : (codes[result.code]||"查询失败");
   } catch(error) {
     status.textContent=error.message==="429"?"检查繁忙，请稍后重试。":"无法完成检查。";
@@ -259,7 +263,7 @@ function renderSources(sources) {
     check.addEventListener("click",()=>checkSource(source.name,check,status));
     cell.append(check,status);
     const capabilities=[source.backend?"后端日志":"",source.vulnerabilities?"漏洞扫描":""].filter(Boolean);
-    return [source.name,source.kind==="loki"?"Loki":"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
+    return [source.name,({loki:"Loki",elasticsearch:"Elasticsearch",prometheus:"Prometheus",victoriametrics:"VictoriaMetrics",kubernetes:"Kubernetes",cloudwatch:"AWS CloudWatch"}[source.kind]||source.kind),source.environment,capabilities.join("、")||"—",cell];
   });
 }
 
@@ -267,7 +271,9 @@ async function loadSources() {
   try {
     const response=await fetch("/api/sources");
     if (!response.ok) throw new Error(String(response.status));
-    renderSources(await response.json());
+    const sources=await response.json();
+    renderSources(sources);
+    renderRouteSources(sources);
   } catch {
     byId("source-status").textContent="数据源列表暂不可用，请重新打开页面。";
   }
@@ -366,6 +372,109 @@ byId("alert-form").addEventListener("submit",async event=>{
     button.disabled=false;
   }
 });
+
+function renderRouteSources(sources) {
+  const select=byId("route-source");
+  const selectable=sources.filter(source=>source.routes);
+  for (const source of selectable) {
+    const option=element("option",source.name);
+    option.value=source.name;
+    select.append(option);
+  }
+  select.disabled=selectable.length===0;
+  byId("route-status").textContent=selectable.length?"请选择要配置的日志数据源。":"暂无已映射 URI 字段的数据源。";
+}
+
+function addRouteRow(rule={label:"",pattern:""}) {
+  const body=byId("route-body");
+  const row=body.insertRow();
+  for (const [field,title,max] of [["label","路由名",100],["pattern","匹配表达式",1024]]) {
+    const input=element("input");
+    input.type="text";
+    input.required=true;
+    input.maxLength=max;
+    input.value=rule[field];
+    input.setAttribute("aria-label",title);
+    row.insertCell().append(input);
+  }
+  const controls=row.insertCell();
+  const add=(label,action)=>{
+    const button=element("button",label,"detail-link");
+    button.type="button";
+    button.addEventListener("click",action);
+    controls.append(button);
+  };
+  add("上移",()=>{if(row.previousElementSibling) body.insertBefore(row,row.previousElementSibling);});
+  add("下移",()=>{if(row.nextElementSibling) body.insertBefore(row.nextElementSibling,row);});
+  add("删除",()=>row.remove());
+}
+
+let routeRequest;
+async function loadRoutes() {
+  routeRequest?.abort();
+  const controller=new AbortController();
+  routeRequest=controller;
+  const source=byId("route-source").value;
+  byId("route-form").hidden=true;
+  byId("route-password").value="";
+  if (!source) {
+    byId("route-status").textContent="请选择要配置的日志数据源。";
+    return;
+  }
+  byId("route-status").textContent="正在加载路由规则…";
+  try {
+    const response=await fetch("/api/sources/"+encodeURIComponent(source)+"/routes",{signal:controller.signal});
+    if (!response.ok) throw new Error();
+    const data=await response.json();
+    if (controller.signal.aborted) return;
+    byId("route-body").replaceChildren();
+    for (const rule of data.routes) addRouteRow(rule);
+    byId("route-fields").disabled=!data.editable;
+    byId("route-actions").hidden=!data.editable;
+    byId("route-reset").disabled=!data.overridden;
+    byId("route-form").hidden=false;
+    byId("route-status").textContent=(data.overridden?"当前使用界面配置。":"当前使用 YAML 默认规则。")+
+      (data.editable?"":"配置 ALERT_SETTINGS_PASSWORD 后可编辑。");
+  } catch {
+    if (!controller.signal.aborted) byId("route-status").textContent="路由规则加载失败。";
+  }
+}
+
+async function saveRoutes(method) {
+  const select=byId("route-source");
+  const fields=byId("route-fields");
+  const password=byId("route-password");
+  if (!password.reportValidity()) return;
+  const rules=Array.from(byId("route-body").rows,row=>{
+    const [label,pattern]=row.querySelectorAll("input");
+    return {label:label.value.trim(),pattern:pattern.value};
+  });
+  select.disabled=fields.disabled=true;
+  try {
+    const response=await fetch("/api/sources/"+encodeURIComponent(select.value)+"/routes",{
+      method,
+      headers:{"Content-Type":"application/json","X-Alert-Settings-Password":password.value},
+      body:method==="PUT"?JSON.stringify(rules):undefined
+    });
+    if (response.ok) {
+      await loadRoutes();
+      if (!byId("route-form").hidden) byId("route-status").textContent=method==="PUT"?"已保存，后续巡检将使用新规则。":"已恢复 YAML 默认规则。";
+    } else {
+      byId("route-status").textContent=response.status===403?"管理密码错误或未配置。":response.status===400?await response.text():"保存失败，请稍后重试。";
+    }
+  } catch {
+    byId("route-status").textContent="保存失败，请检查连接后重试。";
+  } finally {
+    password.value="";
+    select.disabled=false;
+    fields.disabled=false;
+  }
+}
+
+byId("route-source").addEventListener("change",loadRoutes);
+byId("route-add").addEventListener("click",()=>addRouteRow());
+byId("route-form").addEventListener("submit",event=>{event.preventDefault(); void saveRoutes("PUT");});
+byId("route-reset").addEventListener("click",()=>void saveRoutes("DELETE"));
 
 loadAlertSettings();
 loadSources();

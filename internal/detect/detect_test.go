@@ -114,3 +114,25 @@ func TestNginxInspectionClassifiesSignalsAndKeepsRawTargetsOut(t *testing.T) {
 		t.Fatalf("missing checks: %v", wants)
 	}
 }
+
+func TestOptionalBackendWarningsAndBusinessCodes(t *testing.T) {
+	current := platform.Snapshot{Buckets: []platform.Bucket{
+		{Dimension: "level", Value: "WARN", Count: 12},
+		{Dimension: "businesscode", Value: "internal-callback-class", Count: 13},
+		{Dimension: "businesscode", Value: "success", Count: 100},
+	}}
+	rules := config.Rules{BaselineMultiplier: 3}
+	if got := Evaluate(current, nil, rules, nil, nil, nil); len(got) != 0 {
+		t.Fatalf("optional rules enabled unexpectedly: %+v", got)
+	}
+	rules.BackendWarnings, rules.BusinessErrors = 10, 10
+	events := Evaluate(current, nil, rules, nil, nil, nil)
+	if len(events) != 2 {
+		t.Fatalf("expected WARN and failed business-code events: %+v", events)
+	}
+	for _, event := range events {
+		if event.Rule == "backend_business_error_spike" && event.Target != BucketKey("internal-callback-class")[:16] {
+			t.Fatalf("business code was not hashed: %+v", event)
+		}
+	}
+}

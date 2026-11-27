@@ -17,6 +17,7 @@ import (
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -169,7 +170,9 @@ func run() error {
 			}
 		}
 		for _, s := range c.Sources {
-			err = errors.Join(err, r.Run(ctx, c, s, schedule, end))
+			if s.IsLogSource() {
+				err = errors.Join(err, r.Run(ctx, c, s, schedule, end))
+			}
 		}
 		return err
 	}
@@ -180,6 +183,13 @@ func run() error {
 	access := dashboard.SourceAccess{
 		Current: func() []config.Source { return activeConfig.Load().Sources },
 		HTTP:    client,
+		CheckCloudWatch: func(ctx context.Context, region string) error {
+			regional := aws
+			regional.Region = region
+			cw := cloudwatch.NewFromConfig(regional, func(o *cloudwatch.Options) { o.RetryMaxAttempts = 1 })
+			_, err := cw.ListMetrics(ctx, &cloudwatch.ListMetricsInput{})
+			return err
+		},
 	}
 	if victoria.ReadURL != "" || victoria.GrafanaURL != "" {
 		access.MetricsLink = func(ctx context.Context, id string) (string, error) {
@@ -205,7 +215,7 @@ func run() error {
 		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 		defer cancel()
 		var migrated bool
-		err := db.QueryRow(ctx, "SELECT to_regclass('runs') IS NOT NULL AND to_regclass('alert_settings') IS NOT NULL").Scan(&migrated)
+		err := db.QueryRow(ctx, "SELECT to_regclass('runs') IS NOT NULL AND to_regclass('alert_settings') IS NOT NULL AND to_regclass('source_route_settings') IS NOT NULL").Scan(&migrated)
 		if err != nil || !migrated || cache.Ping(ctx).Err() != nil {
 			http.Error(w, "dependencies unavailable", 503)
 			return

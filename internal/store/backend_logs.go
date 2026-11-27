@@ -14,7 +14,7 @@ type BackendLogs struct {
 }
 
 func (s Store) BackendLogs(ctx context.Context, source, kind string, since time.Time, minimum int) (BackendLogs, error) {
-	return s.ruleEvents(ctx, source, kind, since, minimum, []string{"backend_critical_log", "backend_error_spike", "backend_exception", "backend_dependency_failure"})
+	return s.ruleEvents(ctx, source, kind, since, minimum, []string{"backend_critical_log", "backend_error_spike", "backend_warning_spike", "backend_business_error_spike", "backend_exception", "backend_dependency_failure"})
 }
 
 func (s Store) Vulnerabilities(ctx context.Context, source, kind string, since time.Time, minimum int) (BackendLogs, error) {

@@ -58,11 +58,17 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 			next.ServeHTTP(w, r)
 		}
 	}
+	if backend, ok := reader.(reportStore); ok {
+		mountReports(mux, backend, protected)
+	}
 	if backend, ok := reader.(alertStore); ok {
 		mountAlerts(mux, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
 	}
 	if access.Current != nil {
 		mountSources(mux, access, protected)
+		if backend, ok := reader.(routeStore); ok {
+			mountRoutes(mux, access.Current, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
+		}
 	}
 	if access.MetricsLink != nil {
 		mountMetricsLink(mux, access.MetricsLink, protected)

@@ -92,6 +92,22 @@ assert all(e["source"] == "integration-nginx" for e in data["events"])
 '
 
 base="http://127.0.0.1:${AIOBS_PORT}"
+routes_url="$base/api/sources/integration-nginx/routes"
+test "$(curl -sS --user "operator:${DASHBOARD_PASSWORD}" -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' --data '[]' "$routes_url")" = 403
+curl -fsS --user "operator:${DASHBOARD_PASSWORD}" -X PUT \
+  -H "X-Alert-Settings-Password: ${ALERT_SETTINGS_PASSWORD}" -H 'Content-Type: application/json' \
+  --data '[{"label":"/orders/:id","pattern":"^/orders/[0-9]+$"}]' "$routes_url"
+curl -fsS --user "operator:${DASHBOARD_PASSWORD}" "$routes_url" | python3 -c '
+import json,sys
+data=json.load(sys.stdin)
+assert data["overridden"] and data["routes"] == [{"label":"/orders/:id","pattern":"^/orders/[0-9]+$"}]
+'
+curl -fsS --user "operator:${DASHBOARD_PASSWORD}" -X DELETE \
+  -H "X-Alert-Settings-Password: ${ALERT_SETTINGS_PASSWORD}" "$routes_url"
+curl -fsS --user "operator:${DASHBOARD_PASSWORD}" "$routes_url" | python3 -c '
+import json,sys
+assert not json.load(sys.stdin)["overridden"]
+'
 curl -fsS --user "operator:${DASHBOARD_PASSWORD}" "$base/api/sources" | python3 -c '
 import json,sys
 assert json.load(sys.stdin)==[{"name":"integration-nginx","kind":"elasticsearch","environment":"test","backend":True,"vulnerabilities":True}]

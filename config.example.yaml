@@ -33,7 +33,15 @@ sources:
     tenant: staging
     selector: '{app="nginx"}'
     fields: {ip: client_ip, uri: request_uri, host: host, ua: user_agent, status: status, latency: request_time}
+  # 取消注释并替换内网地址后，可在「数据源」执行只读检查。
+  # - {name: prom-prod, kind: prometheus, environment: production, url: "https://prometheus.example.net", check_timeout: 4s, check_retries: 1}
+  # - {name: vm-prod, kind: victoriametrics, environment: production, url: "https://victoriametrics.example.net/select/0/prometheus"}
+  # - {name: kube-prod, kind: kubernetes, environment: production, url: "https://kubernetes.example.net", credential_env: KUBERNETES_CHECK_TOKEN}
+  # - {name: aws-prod, kind: cloudwatch, environment: production, region: ap-southeast-1}
+
 rules:
+  backend_warnings: 0 # 大于 0 时启用 WARN 激增检测
+  business_errors: 0 # 大于 0 时启用，且需在来源中映射 fields.businesscode
   ip: 1000
   uri: 2000
   errors: 100

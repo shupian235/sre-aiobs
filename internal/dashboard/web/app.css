@@ -19,3 +19,7 @@ dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(-
 .source-check{display:inline-flex;align-items:center;gap:8px;white-space:normal}.source-check [role=status]{color:var(--muted)}
 
 .source-hint{margin:0 0 12px;color:var(--muted);font-size:.88rem}
+
+#route-form fieldset { border: 0; padding: 0; min-width: 0; }
+#route-form td input { width: 100%; min-width: 10rem; }
+#route-actions:not([hidden]) { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }

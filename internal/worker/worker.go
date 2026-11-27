@@ -87,6 +87,18 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 		if err != nil {
 			return err
 		}
+		if s.Fields["uri"] != "" {
+			routes, overridden, err := r.Store.SourceRoutes(ctx, s.Name)
+			if err != nil {
+				return err
+			}
+			if overridden {
+				if err := config.ValidateRoutes(routes); err != nil {
+					return fmt.Errorf("stored source route settings invalid: %w", err)
+				}
+				s.Routes = routes
+			}
+		}
 		events = detect.Evaluate(snapshot, history, c.Rules, s.Hosts, s.Routes, r.Geo, s.AllowedMethods...)
 		if r.Analyzer != nil && j.Kind != "five_minutes" {
 			if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) > 25*time.Second {
@@ -145,6 +157,9 @@ func (r *Runner) Cycle(ctx context.Context, c config.Config) {
 	slots := make(chan struct{}, 8)
 	var tasks sync.WaitGroup
 	for _, s := range c.Sources {
+		if !s.IsLogSource() {
+			continue
+		}
 		for _, schedule := range Schedules {
 			tasks.Add(1)
 			go func() {

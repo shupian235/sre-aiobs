@@ -49,7 +49,7 @@ func (v Victoria) Write(ctx context.Context, j platform.Job, r platform.Report) 
 	if seconds := j.Window.End.Sub(j.Window.Start).Seconds(); seconds > 0 {
 		fmt.Fprintf(&latency, "sre_aiobs_window_qps%s %g %d\n", sample, float64(r.Snapshot.Total)/seconds, at)
 	}
-	for _, p := range []string{"50", "95", "99"} {
+	for _, p := range []string{"50", "90", "95", "99"} {
 		seconds, ok := r.Snapshot.OverallLatency[p+".0"]
 		if !ok || seconds < 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
 			continue

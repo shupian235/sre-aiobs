@@ -15,6 +15,7 @@
     <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
     <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
     <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
+    <a href="#route-settings"><span aria-hidden="true">↳</span>路由配置</a>
     <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 安全巡检</a>
     <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
     <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
@@ -50,6 +51,22 @@
     <section id="nginx-routes" class="panel listing">
       <div class="panel-head"><div><h2>Nginx 安全巡检</h2><p id="nginx-status" role="status">正在加载巡检事件…</p></div></div>
       <div class="table-wrap"><table><thead><tr><th>接口或类别</th><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>命中数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
+    </section>
+    <section id="route-settings" class="panel listing">
+      <div class="panel-head"><div><h2>路由配置</h2><p>按顺序使用首条匹配规则，为巡检事件显示路由名。</p></div></div>
+      <label>日志数据源 <select id="route-source" disabled><option value="">选择数据源</option></select></label>
+      <p id="route-status" role="status"></p>
+      <form id="route-form" autocomplete="off" hidden>
+        <fieldset id="route-fields" disabled>
+          <div class="table-wrap"><table><thead><tr><th>路由名</th><th>匹配表达式</th><th>顺序与操作</th></tr></thead><tbody id="route-body"></tbody></table></div>
+          <div id="route-actions">
+            <button type="button" id="route-add">添加规则</button>
+            <label>管理密码 <input id="route-password" type="password" required></label>
+            <button type="submit">保存规则</button>
+            <button type="button" id="route-reset">恢复 YAML 默认规则</button>
+          </div>
+        </fieldset>
+      </form>
     </section>
     <section id="vulnerability-findings" class="panel listing">
       <div class="panel-head"><div><h2>漏洞检测</h2><p id="vulnerability-status" role="status">正在加载漏洞发现…</p></div></div>

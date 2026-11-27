@@ -101,12 +101,16 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 			switch strings.ToLower(strings.TrimSpace(value)) {
 			case "fatal", "panic", "critical", "emergency", "alert", "crit", "emerg":
 				add("backend_critical_log", "", b.Count, 95)
+			case "warn", "warning":
+				if rules.BackendWarnings > 0 && exceeds(rules.BackendWarnings) {
+					add("backend_warning_spike", "", b.Count, 65)
+				}
 			case "error", "err":
 				if exceeds(rules.BackendErrors) {
 					add("backend_error_spike", "", b.Count, 80)
 				}
 			}
-		case "exception", "dependency":
+		case "exception", "dependency", "businesscode":
 			// These fields contain a classification only when a failure occurred.
 			switch strings.ToLower(strings.TrimSpace(value)) {
 			case "", "-", "null", "none", "false", "0", "ok", "success", "unknown":
@@ -114,6 +118,11 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 			}
 			if dimension == "exception" {
 				add("backend_exception", "", b.Count, 85)
+			} else if dimension == "businesscode" {
+				if rules.BusinessErrors == 0 || !exceeds(rules.BusinessErrors) {
+					continue
+				}
+				add("backend_business_error_spike", "", b.Count, 75)
 			} else if exceeds(rules.DependencyErrors) {
 				add("backend_dependency_failure", "", b.Count, 85)
 			} else {

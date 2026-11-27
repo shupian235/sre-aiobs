@@ -20,7 +20,7 @@ import (
 )
 
 // Backend dimensions use structured metadata, never message or stack trace fields.
-var dimensions = []string{"ip", "uri", "host", "ua", "status", "ip_uri", "ip_host", "ip_ua", "ip_status", "uri_status", "ip_method", "method", "waf", "wafrule", "tls", "upstream", "level", "exception", "dependency", "vulnerability"}
+var dimensions = []string{"ip", "uri", "host", "ua", "status", "ip_uri", "ip_host", "ip_ua", "ip_status", "uri_status", "ip_method", "method", "waf", "wafrule", "tls", "upstream", "level", "exception", "dependency", "businesscode", "vulnerability"}
 
 type Client struct {
 	Config config.Source
@@ -108,7 +108,7 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 		composite := object{"size": 500, "sources": keys}
 		agg := object{"composite": composite}
 		if dimension == "uri" && c.Config.Fields["latency"] != "" {
-			agg["aggs"] = object{"latency": object{"percentiles": object{"field": c.Config.Fields["latency"], "percents": []int{50, 95, 99}}}}
+			agg["aggs"] = object{"latency": object{"percentiles": object{"field": c.Config.Fields["latency"], "percents": []int{50, 90, 95, 99}}}}
 		}
 		for page := 0; ; page++ {
 			if page >= 1000 {
@@ -161,7 +161,7 @@ func (c Client) elasticWindow(ctx context.Context, path string, query any, laten
 	type object = map[string]any
 	request := object{"size": 0, "track_total_hits": true, "query": query}
 	if latency != "" {
-		request["aggs"] = object{"latency": object{"percentiles": object{"field": latency, "percents": []int{50, 95, 99}}}}
+		request["aggs"] = object{"latency": object{"percentiles": object{"field": latency, "percents": []int{50, 90, 95, 99}}}}
 	}
 	var totals struct {
 		TimedOut     bool `json:"timed_out"`
@@ -177,7 +177,7 @@ func (c Client) elasticWindow(ctx context.Context, path string, query any, laten
 		return 0, nil, fmt.Errorf("Elasticsearch totals query timed out")
 	}
 	overall := map[string]float64{}
-	for _, key := range []string{"50.0", "95.0", "99.0"} {
+	for _, key := range []string{"50.0", "90.0", "95.0", "99.0"} {
 		if value := totals.Aggregations.Latency.Values[key]; value != nil && *value >= 0 {
 			overall[key] = *value
 		}
@@ -207,7 +207,7 @@ func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot,
 		query := fmt.Sprintf("sum by (%s) (count_over_time(%s | json | __error__=\"\" [%s]))", strings.Join(fields, ","), c.Config.Selector, duration)
 		// Extract only the mapped backend classification from the JSON record.
 		switch dimension {
-		case "level", "exception", "dependency", "vulnerability":
+		case "level", "exception", "dependency", "businesscode", "vulnerability":
 			query = fmt.Sprintf("sum by (sre_aiobs_classification) (count_over_time(%s | json sre_aiobs_classification=%q | __error__=\"\" [%s]))", c.Config.Selector, fields[0], duration)
 			fields = []string{"sre_aiobs_classification"}
 		}
@@ -227,7 +227,7 @@ func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot,
 	uri, latency := c.Config.Fields["uri"], c.Config.Fields["latency"]
 	if latency != "" {
 		result.OverallLatency = map[string]float64{}
-		for _, p := range []string{"50", "95", "99"} {
+		for _, p := range []string{"50", "90", "95", "99"} {
 			// Empty grouping combines all matching streams before calculating the percentile.
 			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by ()", p, c.Config.Selector, latency, duration)
 			samples := 0
@@ -246,7 +246,7 @@ func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot,
 	}
 
 	if uri != "" && latency != "" {
-		for _, p := range []string{"50", "95", "99"} {
+		for _, p := range []string{"50", "90", "95", "99"} {
 			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by (%s)", p, c.Config.Selector, latency, duration, uri)
 			if err := evaluate(query, func(m map[string]string, v float64) {
 				if result.Latency[m[uri]] == nil {

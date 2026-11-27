@@ -144,7 +144,7 @@ func TestWindowLatencyFromElasticsearch(t *testing.T) {
 			t.Error(err)
 		}
 		latency := query.Aggs["latency"].Percentiles
-		if latency.Field != "request_time" || fmt.Sprint(latency.Percents) != "[50 95 99]" {
+		if latency.Field != "request_time" || fmt.Sprint(latency.Percents) != "[50 90 95 99]" {
 			t.Errorf("unexpected percentiles: %+v", latency)
 		}
 		fmt.Fprint(w, `{"hits":{"total":{"value":3}},"aggregations":{"latency":{"values":{"50.0":0.1,"95.0":0.3,"99.0":null}}}}`)
@@ -169,8 +169,8 @@ func TestLokiWindowLatencyCombinesStreams(t *testing.T) {
 			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"3"]}]}}`)
 			return
 		}
-		percentiles := []string{"50", "95", "99"}
-		if calls > 4 || !strings.HasPrefix(query, "quantile_over_time(0."+percentiles[calls-2]+",") || !strings.HasSuffix(query, "by ()") || !strings.Contains(query, " unwrap request_time ") {
+		percentiles := []string{"50", "90", "95", "99"}
+		if calls > 5 || !strings.HasPrefix(query, "quantile_over_time(0."+percentiles[calls-2]+",") || !strings.HasSuffix(query, "by ()") || !strings.Contains(query, " unwrap request_time ") {
 			t.Errorf("unexpected percentile query: %s", query)
 		}
 		fmt.Fprintf(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"0.%d"]}]}}`, calls)
@@ -178,7 +178,7 @@ func TestLokiWindowLatencyCombinesStreams(t *testing.T) {
 	c := Client{Config: config.Source{URL: "https://logs.test", Kind: "loki", Selector: `{app="nginx"}`, Fields: map[string]string{"latency": "request_time"}}, HTTP: clientHTTP}
 	end := time.Now()
 	snapshot, err := c.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
-	if err != nil || calls != 4 || snapshot.OverallLatency["50.0"] != 0.2 || snapshot.OverallLatency["95.0"] != 0.3 || snapshot.OverallLatency["99.0"] != 0.4 {
+	if err != nil || calls != 5 || snapshot.OverallLatency["50.0"] != 0.2 || snapshot.OverallLatency["90.0"] != 0.3 || snapshot.OverallLatency["95.0"] != 0.4 || snapshot.OverallLatency["99.0"] != 0.5 {
 		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
 	}
 }

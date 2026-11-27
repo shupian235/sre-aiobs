@@ -182,8 +182,8 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "P50 / P95 / P99 对比",
-      "description": "0.50、0.95、0.99 分别对应 P50、P95、P99。",
+      "title": "P50 / P90 / P95 / P99 对比",
+      "description": "0.50、0.95、0.99 分别对应 P50、P90、P95、P99。",
       "datasource": {
         "type": "prometheus",
         "uid": "${prometheus}"
