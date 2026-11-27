@@ -55,3 +55,14 @@ Compose 会先执行迁移再启动应用。新增的 [003_source_routes.sql](..
 ## 验证范围
 
 Go 1.27.4 下已通过模块校验、单元测试、静态检查和编译，并已核对 Docker 构建镜像标签。动态验证码登录、重放拦截和会话退出已通过 Redis 测试。路由迁移的 PostgreSQL 实机验证和完整 Compose 集成测试仍待在有足够 Docker 存储空间的测试环境执行。
+
+## GeoIP 国家和地区
+
+风险事件和 Nginx 安全巡检列表会显示客户端 IP 的国家与地区。新建的单机 Elasticsearch 配置直接读取采集管道写入的 GeoIP 字段。现有 Elasticsearch 配置可在对应日志源的 `fields` 中追加以下字段，实际索引须有可聚合的 ISO 代码字段：
+
+```yaml
+country: client_geo.country_iso_code
+region: client_geo.region_iso_code
+```
+
+也可通过 `geo_db` 配置可读的 GeoLite2 City 等兼容 MMDB 文件路径，供 Elasticsearch 或 Loki 来源查询。使用容器时，先把文件以只读方式挂载到相同路径。MMDB 查到的国家优先，其余情况读取 Elasticsearch 聚合结果。私网地址或没有地理结果的事件显示「—」。新巡检保存国家与地区，历史事件沿用此前记录的数据。

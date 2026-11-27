@@ -89,6 +89,10 @@
         "status_5xx_sample": {
           "type": "short",
           "ignore_malformed": true
+        },
+        "collector_hostname": {
+          "type": "keyword",
+          "ignore_above": 128
         }
       }
     }

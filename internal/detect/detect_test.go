@@ -136,3 +136,34 @@ func TestOptionalBackendWarningsAndBusinessCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestGeoIPFallbackValidatesLocationCodes(t *testing.T) {
+	snapshot := platform.Snapshot{
+		Buckets: []platform.Bucket{
+			{Dimension: "ip", Value: "8.8.8.8", Count: 10},
+			{Dimension: "ip", Value: "10.0.0.1", Count: 10},
+			{Dimension: "ip", Value: "9.9.9.9", Count: 10},
+		},
+		Locations: map[string]platform.Location{
+			"8.8.8.8":  {Country: "US", Region: "US-CA"},
+			"10.0.0.1": {Country: "US", Region: "US-TX"},
+			"9.9.9.9":  {Country: "US", Region: "not-an-iso-code"},
+		},
+	}
+	events := Evaluate(snapshot, nil, config.Rules{IP: 1, BaselineMultiplier: 3}, nil, nil, nil)
+	got := map[string]platform.Location{}
+	for _, event := range events {
+		got[event.IP] = platform.Location{Country: event.Country, Region: event.Region}
+	}
+	want := map[string]platform.Location{
+		"8.8.8.8": {Country: "US", Region: "US-CA"}, "10.0.0.1": {}, "9.9.9.9": {Country: "US"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected IP event count: %+v", got)
+	}
+	for ip, location := range want {
+		if got[ip] != location {
+			t.Errorf("location for %s: got %+v, want %+v", ip, got[ip], location)
+		}
+	}
+}

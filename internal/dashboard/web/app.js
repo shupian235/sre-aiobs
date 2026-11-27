@@ -16,9 +16,16 @@ const labels = new Map(Object.entries({
   nginx_upstream_error:"上游错误激增",nginx_route_error:"接口限流或上游错误",
   nginx_auth_failure_burst:"认证失败激增",nginx_not_found_burst:"404 激增",nginx_rate_limit_burst:"限流激增",scanner_vulnerability:"漏洞扫描发现"
 }));
+const countryNames = typeof Intl.DisplayNames==="function"?new Intl.DisplayNames(["zh-CN"],{type:"region"}):null;
 const statuses = new Map([["done","已完成"],["failed","失败"],["running","运行中"]]);
 let trend = [];
 let activeRequest;
+
+function locationLabel(event) {
+  const country=event.Country||"";
+  const label=countryNames&&/^[A-Z]{2}$/.test(country)?countryNames.of(country):country;
+  return [label,event.Region].filter(Boolean).join(" / ")||"—";
+}
 
 function element(tag, text, style) {
   const el = document.createElement(tag);
@@ -53,7 +60,7 @@ function showDetail(record,metricsLinks) {
   const fields = event.Rule==="scanner_vulnerability" ? [
     ["CVE",event.Target],["扫描记录数",number.format(event.Count)],["数据源",record.source],["Run ID",record.id]
   ] : [
-    ["客户端 IP",event.IP],["地区",[event.Country,event.Region].filter(Boolean).join(" / ")],
+    ["客户端 IP",event.IP],["地区",locationLabel(event)],
     ["目标标识",event.Target],[event.Rule.startsWith("backend_")?"日志条数":"请求次数",number.format(event.Count)],
     ["关联规则",(event.Signals || []).map(rule => labels.get(rule) || rule).join("、")],
     ["Run ID",record.id],["Correlation ID",record.correlation_id]
@@ -163,9 +170,9 @@ function render(data) {
   }
   if (!data.rules.length) rules.append(element("p","当前筛选范围内暂无规则命中。","empty"));
 
-  rows(byId("event-body"),data.events,6,item => {
+  rows(byId("event-body"),data.events,7,item => {
     const event=item.event;
-    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)];
+    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),locationLabel(event),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)];
   });
   rows(byId("task-body"),data.tasks,5,item=>{
     const report=element("a",item.id,"mono");
@@ -212,9 +219,9 @@ async function refreshVulnerabilities(filters,controller) {
 
 function renderNginxRoutes(data) {
   byId("nginx-status").textContent=`共 ${number.format(data.total)} 条事件，显示最近 ${data.events.length} 条。`;
-  rows(byId("nginx-body"),data.events,8,item=>[
+  rows(byId("nginx-body"),data.events,9,item=>[
     element("span",item.event.Target||"—","mono"),labels.get(item.event.Rule)||item.event.Rule,
-    riskRating(item.score),element("span",item.event.IP||"—","mono"),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
+    riskRating(item.score),element("span",item.event.IP||"—","mono"),locationLabel(item.event),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
   ]);
 }
 

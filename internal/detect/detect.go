@@ -15,6 +15,9 @@ import (
 
 type Geo func(netip.Addr) (string, string)
 
+var countryCode = regexp.MustCompile(`^[A-Z]{2}$`)
+var regionCode = regexp.MustCompile(`^(?:[A-Z]{2}-)?[A-Z0-9]{1,3}$`)
+
 var cveID = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,12}$`)
 
 var signatures = map[string]*regexp.Regexp{
@@ -57,13 +60,31 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 	events := []platform.Event{}
 	correlated := map[string]map[string]int{}
 	vulnerabilities := map[string]int64{}
+	setLocation := func(event *platform.Event) {
+		ip := netip.MustParseAddr(event.IP)
+		if !ip.IsGlobalUnicast() || ip.IsPrivate() {
+			return
+		}
+		country, region := "", ""
+		if geo != nil {
+			country, region = geo(ip)
+		}
+		if country == "" {
+			location := s.Locations[event.IP]
+			country, region = location.Country, location.Region
+		}
+		if countryCode.MatchString(country) {
+			event.Country = country
+			if regionCode.MatchString(region) {
+				event.Region = region
+			}
+		}
+	}
 	add := func(rule, ip string, count int64, score int) {
 		event := platform.Event{Rule: rule, Count: count, Score: score}
 		if addr, err := netip.ParseAddr(ip); err == nil && addr.Zone() == "" {
 			event.IP = addr.Unmap().String()
-			if geo != nil {
-				event.Country, event.Region = geo(addr.Unmap())
-			}
+			setLocation(&event)
 			if correlated[event.IP] == nil {
 				correlated[event.IP] = map[string]int{}
 			}
@@ -245,9 +266,7 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 		if e.Score > 100 {
 			e.Score = 100
 		}
-		if geo != nil {
-			e.Country, e.Region = geo(netip.MustParseAddr(ip))
-		}
+		setLocation(&e)
 		events = append(events, e)
 	}
 	sort.SliceStable(events, func(i, j int) bool {

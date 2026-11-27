@@ -43,6 +43,21 @@
     },
     {
       "set": {
+        "field": "collector_hostname",
+        "copy_from": "agent.name",
+        "ignore_empty_value": true
+      }
+    },
+    {
+      "set": {
+        "field": "log_hostname",
+        "copy_from": "collector_hostname",
+        "ignore_empty_value": true,
+        "if": "ctx.log_hostname == null"
+      }
+    },
+    {
+      "set": {
         "field": "log_hostname",
         "copy_from": "host.name",
         "ignore_empty_value": true,

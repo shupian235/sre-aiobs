@@ -10,6 +10,8 @@ sources:
     fields:
       timestamp: "@timestamp"
       ip: client_ip
+      country: client_geo.country_iso_code
+      region: client_geo.region_iso_code
       uri: request_uri
       host: nginx_host
       ua: user_agent

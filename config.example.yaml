@@ -20,6 +20,8 @@ sources:
       status: http.response.status_code
       latency: nginx.request_time
       # 按实际索引映射启用可选维度。
+      # country: client_geo.country_iso_code
+      # region: client_geo.region_iso_code
       # method: http.request.method.keyword
       # waf: waf.action.keyword
       # wafrule: waf.category.keyword

@@ -238,6 +238,8 @@ ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.y
   --ask-vault-pass -e @deploy/collectors/vault.yml
 ```
 
+每台采集机默认用 inventory 左侧的主机名作为 Filebeat 采集名。要自定义，可为该主机设置 `collector_hostname`，例如 `nginx02 ansible_host=192.0.2.11 collector_hostname=nginx-edge-02`。采集名写入 `agent.name`，并由 Elasticsearch 管道复制至 `collector_hostname`。在 Kibana Discover 的 Nginx 数据视图可按 `collector_hostname : "nginx-edge-02"` 筛选。既有 Nginx 日志主机名仍保留在 `log_hostname`，缺少时才使用采集名回填。更新中心机管道并重新执行 Ansible 后，新日志会附带采集名。
+
 Grafana 登录后打开 `/d/sre-aiobs-nginx` 的「Nginx Access 日志看板」。面板可看每分钟 QPS、错误率、状态码、域名、服务、主机、接口、User-Agent、流量、客户端 IP、GeoIP，以及 P50、P95、P99。默认按附件口径过滤 `/ws/v1/`、`cb` 服务和 ALB 健康检查，可在「流量过滤」修改 Lucene 表达式。巡检异常在 `/d/sre-aiobs/sre-aiobs` 查看。访问 Grafana 的人员可查看日志数据和客户端 IP，请用现有内网访问控制限制账号。
 
 日志需提供真实来源 IP。Nginx 位于代理之后时，应沿用已有的可信代理与 real IP 配置。地区面板需要 Elasticsearch 内置 GeoIP 数据库完成下载并解析公网 IP。离线环境需由管理员提供 GeoIP 数据。服务级和响应体流量图分别依赖 `service` 与 `body_bytes_sent`。新增模板和管道应用于新建索引，既有数据要先核对字段和模板兼容性。应用通知中为单个事件添加地理信息时按本手册前文配置 `geo_db`。

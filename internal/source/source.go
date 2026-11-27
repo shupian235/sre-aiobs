@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -110,6 +111,14 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 		if dimension == "uri" && c.Config.Fields["latency"] != "" {
 			agg["aggs"] = object{"latency": object{"percentiles": object{"field": c.Config.Fields["latency"], "percents": []int{50, 90, 95, 99}}}}
 		}
+		if country := c.Config.Fields["country"]; dimension == "ip" && country != "" {
+			countries := object{"terms": object{"field": country, "size": 1}}
+			if region := c.Config.Fields["region"]; region != "" {
+				countries["aggs"] = object{"regions": object{"terms": object{"field": region, "size": 1}}}
+			}
+			agg["aggs"] = object{"countries": countries}
+			result.Locations = map[string]platform.Location{}
+		}
 		for page := 0; ; page++ {
 			if page >= 1000 {
 				return result, fmt.Errorf("composite page limit exceeded for %s", dimension)
@@ -119,9 +128,15 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 				Aggregations map[string]struct {
 					After   map[string]any `json:"after_key"`
 					Buckets []struct {
-						Key     map[string]any
-						Count   int64 `json:"doc_count"`
-						Latency struct{ Values map[string]*float64 }
+						Key       map[string]any
+						Count     int64 `json:"doc_count"`
+						Latency   struct{ Values map[string]*float64 }
+						Countries struct {
+							Buckets []struct {
+								Key     string
+								Regions struct{ Buckets []struct{ Key string } }
+							}
+						}
 					}
 				}
 			}
@@ -139,6 +154,16 @@ func (c Client) elastic(ctx context.Context, w platform.Window) (platform.Snapsh
 				}
 				value := strings.Join(values, "\x00")
 				result.Buckets = append(result.Buckets, platform.Bucket{Dimension: dimension, Value: value, Count: b.Count})
+				if result.Locations != nil && dimension == "ip" && len(b.Countries.Buckets) > 0 {
+					country := b.Countries.Buckets[0]
+					location := platform.Location{Country: country.Key}
+					if len(country.Regions.Buckets) > 0 {
+						location.Region = country.Regions.Buckets[0].Key
+					}
+					if ip, err := netip.ParseAddr(value); err == nil && ip.Zone() == "" {
+						result.Locations[ip.Unmap().String()] = location
+					}
+				}
 				for k, v := range b.Latency.Values {
 					if v != nil {
 						if result.Latency[value] == nil {

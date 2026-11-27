@@ -222,3 +222,30 @@ func TestLokiTransportErrorDoesNotExposeQuery(t *testing.T) {
 		t.Fatalf("expected timeout classification, got %v", err)
 	}
 }
+
+func TestElasticsearchIPBucketsIncludeOptionalGeoIP(t *testing.T) {
+	calls := 0
+	httpClient := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			fmt.Fprint(w, `{"hits":{"total":{"value":1}}}`)
+			return
+		}
+		var query json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&query); err != nil || !strings.Contains(string(query), "client_geo.region_iso_code") {
+			t.Fatal("missing region bucket")
+		}
+		fmt.Fprint(w, `{"aggregations":{"groups":{"buckets":[{"key":{"ip":"::ffff:8.8.8.8"},"doc_count":1,"countries":{"buckets":[{"key":"US","regions":{"buckets":[{"key":"US-CA"}]}}]}}]}}}`)
+	}))
+	client := Client{
+		HTTP: httpClient,
+		Config: config.Source{URL: "http://logs.test", Kind: "elasticsearch", Index: "nginx", Fields: map[string]string{
+			"timestamp": "@timestamp", "ip": "client_ip", "country": "client_geo.country_iso_code", "region": "client_geo.region_iso_code",
+		}},
+	}
+	end := time.Now()
+	result, err := client.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
+	if err != nil || calls != 2 || result.Locations["8.8.8.8"] != (platform.Location{Country: "US", Region: "US-CA"}) {
+		t.Fatalf("unexpected result: %+v, err=%v", result, err)
+	}
+}

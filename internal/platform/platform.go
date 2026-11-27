@@ -15,7 +15,10 @@ type Snapshot struct {
 	Buckets        []Bucket
 	Latency        map[string]map[string]float64
 	OverallLatency map[string]float64
+	Locations      map[string]Location `json:"-"`
 }
+
+type Location struct{ Country, Region string }
 
 const VulnerabilityRule = "scanner_vulnerability"
 

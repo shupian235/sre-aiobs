@@ -3,11 +3,14 @@
   hosts: nginx_collectors
   become: true
   serial: 5
+  vars:
+    effective_collector_hostname: "{{ collector_hostname | default(inventory_hostname) }}"
   tasks:
     - name: Validate collector configuration
       ansible.builtin.assert:
         that:
           - collector_elasticsearch_url is match('^https://[A-Za-z0-9.-]+(:[0-9]+)?$')
+          - effective_collector_hostname is match('^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$')
           - collector_log_dir is match('^/[A-Za-z0-9_./-]+$')
           - collector_log_glob is match('^[A-Za-z0-9_.*?-]+$')
           - collector_elasticsearch_password is match('^[A-Fa-f0-9]{32,128}$')
@@ -35,7 +38,7 @@
       ansible.builtin.copy:
         dest: /opt/sre-aiobs-collector/filebeat.yml
         mode: '0600'
-        content: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/filebeat.config.yml') ~ ('\n  ssl.certificate_authorities: [\"/etc/pki/tls/certs/sre-aiobs-ca.crt\"]' if collector_ca_file is defined else '') ~ '\n' }}"
+        content: "{{ ('name: ' ~ (effective_collector_hostname | to_json) ~ '\n') ~ lookup('ansible.builtin.file', playbook_dir ~ '/filebeat.config.yml') ~ ('\n  ssl.certificate_authorities: [\"/etc/pki/tls/certs/sre-aiobs-ca.crt\"]' if collector_ca_file is defined else '') ~ '\n' }}"
       register: collector_config
     - name: Install collector environment
       ansible.builtin.copy:
