@@ -14,6 +14,19 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 ![漏洞发现、Slack 与 Telegram 告警及 AWS SES 定期邮件](docs/preview/images/vulnerability-alerts.png)
 
+<details>
+<summary>查看巡检、异常追踪、VictoriaMetrics 与部署示意图</summary>
+
+![Nginx 安全巡检按日志维度划分规则类别](docs/preview/images/nginx-inspection.png)
+
+![从看板筛选巡检事件并打开对应任务的指标](docs/preview/images/incident-investigation.png)
+
+![VictoriaMetrics 窗口指标与异常查询范围](docs/preview/images/victoriametrics.png)
+
+![Docker Compose 与 Kubernetes 部署对照](docs/preview/images/deployment.png)
+
+</details>
+
 ## 部署方式
 
 | 环境 | 部署入口 |
