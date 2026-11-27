@@ -239,3 +239,5 @@ ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.y
 Grafana 登录后打开 `/d/sre-aiobs-nginx` 的「Nginx Access 日志看板」。面板可看每分钟 QPS、错误率、状态码、域名、服务、主机、接口、User-Agent、流量、客户端 IP、GeoIP，以及 P50、P95、P99。默认按附件口径过滤 `/ws/v1/`、`cb` 服务和 ALB 健康检查，可在「流量过滤」修改 Lucene 表达式。巡检异常在 `/d/sre-aiobs/sre-aiobs` 查看。访问 Grafana 的人员可查看日志数据和客户端 IP，请用现有内网访问控制限制账号。
 
 日志需提供真实来源 IP。Nginx 位于代理之后时，应沿用已有的可信代理与 real IP 配置。地区面板需要 Elasticsearch 内置 GeoIP 数据库完成下载并解析公网 IP。离线环境需由管理员提供 GeoIP 数据。服务级和响应体流量图分别依赖 `service` 与 `body_bytes_sent`。新增模板和管道应用于新建索引，既有数据要先核对字段和模板兼容性。应用通知中为单个事件添加地理信息时按本手册前文配置 `geo_db`。
+
+独立的 [Nginx 地理分布看板](../deploy/grafana/nginx-geo-dashboard.json) 由 Compose 自动加载，Grafana 路径为 `/d/sre-aiobs-nginx-geo`。可以查看来源国家数、国家和城市 Top 20、各国流量与 4xx／5xx 趋势，以及按国家、地区和高频 IP 汇总的错误率。该看板包含完整匹配流量。只在具备所需 GeoIP 字段的记录中计算地理排行，来源国家数使用 Elasticsearch 的近似去重。私网、保留地址以及无法定位的公网地址不会产生地理标签。已有索引在切换管道版本后，旧记录的城市和状态分类字段需要按既有回填流程补齐。

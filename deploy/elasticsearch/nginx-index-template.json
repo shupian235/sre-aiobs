@@ -56,6 +56,9 @@
             },
             "country_name": {
               "type": "keyword"
+            },
+            "city_name": {
+              "type": "keyword"
             }
           }
         },
@@ -76,6 +79,14 @@
           "ignore_malformed": true
         },
         "error_rate_sample": {
+          "type": "short",
+          "ignore_malformed": true
+        },
+        "status_4xx_sample": {
+          "type": "short",
+          "ignore_malformed": true
+        },
+        "status_5xx_sample": {
           "type": "short",
           "ignore_malformed": true
         }

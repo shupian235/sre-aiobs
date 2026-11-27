@@ -41,6 +41,7 @@ services:
     volumes:
       - ./deploy/grafana/nginx-datasource.yaml:/etc/grafana/provisioning/datasources/nginx.yaml:ro
       - ./deploy/grafana/nginx-dashboard.json:/var/lib/grafana/dashboards/nginx.json:ro
+      - ./deploy/grafana/nginx-geo-dashboard.json:/var/lib/grafana/dashboards/nginx-geo.json:ro
     depends_on:
       elasticsearch-setup:
         condition: service_completed_successfully

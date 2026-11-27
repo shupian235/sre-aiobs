@@ -9,7 +9,12 @@ services:
       NGINX_LOG_GLOB: ${NGINX_LOG_GLOB:-access.log}
     volumes:
       - ./deploy/collectors/filebeat.config.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ${NGINX_LOG_DIR:-/var/log/nginx}:/var/log/sre-nginx:ro
+      - type: bind
+        source: ${NGINX_LOG_DIR:-/var/log/nginx}
+        target: /var/log/sre-nginx
+        read_only: true
+        bind:
+          create_host_path: false
       - filebeatdata:/usr/share/filebeat/data
     depends_on:
       elasticsearch-setup:

@@ -143,3 +143,7 @@ routes:
 新装环境运行 `./deploy/single-node/start.sh --with-nginx-collector`，可启动带 Elasticsearch 的完整服务栈和同机 Nginx 采集。Grafana 自动配置「Nginx Access 日志看板」，包含 QPS、状态码、延迟、域名、服务、流量、风险排查、客户端 IP 和地区分布。多台 Nginx 通过私网 HTTPS 接入，使用 Ansible 分批部署采集端。[启动命令、索引映射和批量采集说明](docs/deployment.md#elasticsearch-与-nginx-批量采集)
 
 ![Grafana Nginx 流量、状态码、地区和 IP 模拟数据预览](docs/preview/images/grafana-nginx-traffic.png)
+
+「Nginx 地理分布看板」按国家、地区和城市显示请求量、错误趋势及高频 IP，便于定位异常流量的来源。[查看看板配置](deploy/grafana/nginx-geo-dashboard.json)
+
+![Grafana Nginx 国家、城市、状态码和高频 IP 模拟数据预览](docs/preview/images/grafana-nginx-geo.png)

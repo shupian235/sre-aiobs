@@ -51,7 +51,7 @@
     },
     {
       "script": {
-        "source": "if (ctx.request_uri != null && ctx.request_path == null) { int query = ctx.request_uri.indexOf('?'); ctx.request_path = query == -1 ? ctx.request_uri : ctx.request_uri.substring(0, query); } if (ctx.status != null) { try { int status = Integer.parseInt(ctx.status.toString()); ctx.error_rate_sample = status >= 400 && status < 600 ? 100 : 0; } catch (Exception ignored) {} }"
+        "source": "if (ctx.request_uri != null && ctx.request_path == null) { int query = ctx.request_uri.indexOf('?'); ctx.request_path = query == -1 ? ctx.request_uri : ctx.request_uri.substring(0, query); } if (ctx.status != null) { try { int status = Integer.parseInt(ctx.status.toString()); ctx.status_4xx_sample = status >= 400 && status < 500 ? 1 : 0; ctx.status_5xx_sample = status >= 500 && status < 600 ? 1 : 0; ctx.error_rate_sample = (ctx.status_4xx_sample + ctx.status_5xx_sample) * 100; } catch (Exception ignored) {} }"
       }
     },
     {
@@ -63,7 +63,8 @@
         "properties": [
           "country_iso_code",
           "region_iso_code",
-          "country_name"
+          "country_name",
+          "city_name"
         ]
       }
     },
@@ -73,6 +74,38 @@
         "copy_from": "geoip.country_name_zh",
         "ignore_empty_value": true,
         "if": "ctx.geoip != null && ctx.geoip.country_name_zh != null"
+      }
+    },
+    {
+      "set": {
+        "field": "client_geo.country_iso_code",
+        "copy_from": "geoip.country_code2",
+        "ignore_empty_value": true,
+        "if": "ctx.geoip != null && ctx.geoip.country_code2 != null"
+      }
+    },
+    {
+      "set": {
+        "field": "client_geo.region_iso_code",
+        "copy_from": "geoip.region_iso_code",
+        "ignore_empty_value": true,
+        "if": "ctx.geoip != null && ctx.geoip.region_iso_code != null"
+      }
+    },
+    {
+      "set": {
+        "field": "client_geo.city_name",
+        "copy_from": "geoip.city_name",
+        "ignore_empty_value": true,
+        "if": "ctx.geoip != null && ctx.geoip.city_name != null"
+      }
+    },
+    {
+      "set": {
+        "field": "client_geo.country_name",
+        "copy_from": "geoip.country_name",
+        "ignore_empty_value": true,
+        "if": "ctx.geoip != null && ctx.geoip.country_name_zh == null"
       }
     }
   ]

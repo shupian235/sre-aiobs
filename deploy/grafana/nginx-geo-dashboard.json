@@ -1,0 +1,978 @@
+{
+  "uid": "sre-aiobs-nginx-geo",
+  "title": "Nginx 地理分布看板",
+  "tags": [
+    "sre-aiobs",
+    "nginx",
+    "geoip"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "总请求量",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "filters",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "全部",
+                    "query": "*"
+                  }
+                ]
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "4xx 请求数",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "* AND (status:[400 TO 499])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "filters",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "全部",
+                    "query": "*"
+                  }
+                ]
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "5xx 请求数",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "* AND (status:[500 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "filters",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "全部",
+                    "query": "*"
+                  }
+                ]
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "来源国家数（估算）",
+      "description": "",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "filters",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "全部",
+                    "query": "*"
+                  }
+                ]
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "cardinality",
+              "field": "client_geo.country_iso_code"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Top 20 来源国家",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Top 20 城市",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.city_name",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "状态码 × 国家分布",
+      "description": "4xx 和 5xx 分别汇总同一国家的请求，错误率仅计算有状态码的请求。",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "总请求"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_4xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "4xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_5xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Average error_rate_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "错误率 (%)"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "sum",
+              "field": "status_4xx_sample"
+            },
+            {
+              "id": "3",
+              "type": "sum",
+              "field": "status_5xx_sample"
+            },
+            {
+              "id": "4",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "来源国家流量趋势（Top 5）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "5",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "{{term client_geo.country_name}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "4xx / 5xx 趋势（Top 5 来源国家）",
+      "description": "",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "* AND (status:[400 TO 499])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "5",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "4xx {{term client_geo.country_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "* AND (status:[500 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "5",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "30",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "alias": "5xx {{term client_geo.country_name}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "高频 IP × 来源国家（Top 20）",
+      "description": "频率和错误率是排查线索，确认的安全事件请查看巡检面板。只展示可定位国家的 IP。",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "总请求"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_4xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "4xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_5xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Average error_rate_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "错误率 (%)"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_ip",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            },
+            {
+              "id": "21",
+              "type": "terms",
+              "field": "client_geo.country_name",
+              "settings": {
+                "size": "5",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "sum",
+              "field": "status_4xx_sample"
+            },
+            {
+              "id": "3",
+              "type": "sum",
+              "field": "status_5xx_sample"
+            },
+            {
+              "id": "4",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "状态码 × 来源地区",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "总请求"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_4xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "4xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sum status_5xx_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "5xx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Average error_rate_sample"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "错误率 (%)"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "*",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_geo.region_iso_code",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            },
+            {
+              "id": "2",
+              "type": "sum",
+              "field": "status_4xx_sample"
+            },
+            {
+              "id": "3",
+              "type": "sum",
+              "field": "status_5xx_sample"
+            },
+            {
+              "id": "4",
+              "type": "avg",
+              "field": "error_rate_sample"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "错误请求 IP（按 4xx + 5xx 请求量排序）",
+      "description": "",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "nginx-elasticsearch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "nginx-elasticsearch"
+          },
+          "query": "* AND (status:[400 TO 599])",
+          "timeField": "@timestamp",
+          "bucketAggs": [
+            {
+              "id": "20",
+              "type": "terms",
+              "field": "client_ip",
+              "settings": {
+                "size": "20",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ],
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Nginx Access 日志看板",
+      "type": "link",
+      "url": "/d/sre-aiobs-nginx",
+      "keepTime": true
+    },
+    {
+      "title": "巡检异常与窗口指标",
+      "type": "link",
+      "url": "/d/sre-aiobs/sre-aiobs",
+      "keepTime": true
+    }
+  ]
+}
