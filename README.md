@@ -13,6 +13,8 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 ### 功能示意图
 
+下方为功能示意和模拟指标预览。使用真实日志时，可通过 [快速部署](docs/quickstart.md) 启动看板。
+
 ![SRE AIObs 日志采集、聚合、检测与展示](docs/preview/images/architecture.png)
 
 ![Nginx 风险观察中的检测类别和筛选维度](docs/preview/images/nginx-risk.png)
@@ -20,7 +22,17 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 ![漏洞发现、Slack 与 Telegram 告警及 AWS SES 定期邮件](docs/preview/images/vulnerability-alerts.png)
 
 <details>
-<summary>查看巡检、异常追踪、VictoriaMetrics 与部署示意图</summary>
+<summary>查看双重验证、路由配置、巡检报告、Kibana 与部署示意图</summary>
+
+![Google Authenticator 双重验证登录](docs/preview/images/totp-login.png)
+
+![Nginx 路由可视化配置](docs/preview/images/route-settings.png)
+
+![六类数据源只读连接检查](docs/preview/images/source-management.png)
+
+![历史巡检报告及下载格式](docs/preview/images/inspection-report.png)
+
+![Kibana 自动导入的 Nginx 看板](docs/preview/images/kibana-dashboards.png)
 
 ![Nginx 安全巡检按日志维度划分规则类别](docs/preview/images/nginx-inspection.png)
 
@@ -133,11 +145,13 @@ Compose 测试用独立的随机项目名，验证真实 Elasticsearch 日志聚
 
 ![P50 窗口延迟示例](docs/preview/images/grafana-p50.png)
 
+![P90 窗口延迟示例](docs/preview/images/grafana-p90.png)
+
 ![P95 窗口延迟与越限阈值示例](docs/preview/images/grafana-p95.png)
 
 ![P99 窗口延迟示例](docs/preview/images/grafana-p99.png)
 
-![P50、P95 和 P99 对比示例](docs/preview/images/grafana-percentile-comparison.png)
+![P50、P90、P95 和 P99 对比示例](docs/preview/images/grafana-percentile-comparison.png)
 
 ![P95 越限、风险事件数量与最高评分示例](docs/preview/images/grafana-anomalies.png)
 
