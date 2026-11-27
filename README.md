@@ -4,6 +4,8 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 ## 界面预览
 
+[功能预览文档](docs/preview/README.md)汇总运维、Grafana、Kibana 和采集链路。
+
 打开仓库里的 [离线演示](docs/preview/index.html)，在 GitHub 文件页点击 **Download raw file**，下载后双击 `index.html`。演示包含安全概览、Nginx 风险接口、漏洞检测、数据源列表和告警设置，使用模拟数据，支持筛选和查看详情。
 
 ### 功能示意图
@@ -28,6 +30,8 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 </details>
 
 ## 部署方式
+
+[单机快速部署](docs/quickstart.md)包含启动命令、登录入口、日志验证和多机采集步骤。
 
 | 环境 | 部署入口 |
 | --- | --- |
