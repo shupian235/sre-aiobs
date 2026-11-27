@@ -241,3 +241,18 @@ Grafana 登录后打开 `/d/sre-aiobs-nginx` 的「Nginx Access 日志看板」�
 日志需提供真实来源 IP。Nginx 位于代理之后时，应沿用已有的可信代理与 real IP 配置。地区面板需要 Elasticsearch 内置 GeoIP 数据库完成下载并解析公网 IP。离线环境需由管理员提供 GeoIP 数据。服务级和响应体流量图分别依赖 `service` 与 `body_bytes_sent`。新增模板和管道应用于新建索引，既有数据要先核对字段和模板兼容性。应用通知中为单个事件添加地理信息时按本手册前文配置 `geo_db`。
 
 独立的 [Nginx 地理分布看板](../deploy/grafana/nginx-geo-dashboard.json) 由 Compose 自动加载，Grafana 路径为 `/d/sre-aiobs-nginx-geo`。可以查看来源国家数、国家和城市 Top 20、各国流量与 4xx／5xx 趋势，以及按国家、地区和高频 IP 汇总的错误率。该看板包含完整匹配流量。只在具备所需 GeoIP 字段的记录中计算地理排行，来源国家数使用 Elasticsearch 的近似去重。私网、保留地址以及无法定位的公网地址不会产生地理标签。已有索引在切换管道版本后，旧记录的城市和状态分类字段需要按既有回填流程补齐。
+
+## 完整 ELK 单机部署
+
+在 Elasticsearch、PostgreSQL、Redis、VictoriaMetrics、Grafana 和 Go 服务的基础上，`--with-elk` 增加同版本的 Kibana 和 Logstash。要一起启动本机 Nginx 采集，解压后运行：
+
+```sh
+NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
+  ./deploy/single-node/start.sh --with-elk --with-nginx-collector
+```
+
+本机采集链路为 **Nginx JSON 日志 → Filebeat → Logstash → Elasticsearch**。Logstash 使用持久化队列，默认容量 512 MB，且只拥有 Nginx 索引写入权限。Beats 端口 5044 仅在 Compose 网络内可达。已有的 Ansible 批量采集仍可通过 `--with-ingest-gateway` 启用的内网 HTTPS 网关写入 Elasticsearch。
+
+Kibana 默认绑定 `127.0.0.1:5601`。初次登录使用 `elastic` 和 `.env` 中的 `ELASTIC_PASSWORD`。日常使用请创建受限的个人账号。Kibana 服务内部使用独立的 `kibana_system` 密码，密钥保存在 `.env`，重启时复用。启动后可在 Discover 选择 Nginx、Applications 或 Vulnerabilities 三个预建 Data View。Nginx Data View 沿用两份附件中的 ID。需要在 Kibana 导入看板时，在兼容版本的原 Kibana 中通过 Saved Objects 导出 NDJSON，再用目标 Kibana 的 Saved Objects 界面导入。目前部署包内的两份完整看板通过 Grafana 自动加载，附件粘贴的面板 JSON 需从源 Kibana 导出为 Saved Objects 文件后导入。
+
+首次启动需拉取 Elastic 官方镜像。可用 `COMPOSE_WAIT_TIMEOUT=480` 延长服务就绪等待。若单机上已经有 `config.yaml`，脚本会保留它，按前文合并本地 Elasticsearch 数据源即可。

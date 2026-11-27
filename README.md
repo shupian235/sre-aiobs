@@ -147,3 +147,7 @@ routes:
 「Nginx 地理分布看板」按国家、地区和城市显示请求量、错误趋势及高频 IP，便于定位异常流量的来源。[查看看板配置](deploy/grafana/nginx-geo-dashboard.json)
 
 ![Grafana Nginx 国家、城市、状态码和高频 IP 模拟数据预览](docs/preview/images/grafana-nginx-geo.png)
+
+### 完整 ELK 部署
+
+用 `./deploy/single-node/start.sh --with-elk --with-nginx-collector` 启动 Elasticsearch、Logstash、Kibana、Filebeat 和现有运维组件。Kibana 预置 Nginx、应用日志、漏洞发现三个数据视图，Grafana 继续自动加载 Nginx 流量与地理分布看板。[ELK 启动与接入说明](docs/deployment.md#完整-elk-单机部署)

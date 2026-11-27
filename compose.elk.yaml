@@ -1,0 +1,63 @@
+services:
+  app:
+    depends_on:
+      kibana-setup:
+        condition: service_completed_successfully
+  elasticsearch-setup:
+    environment:
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD}
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    environment:
+      STATUS_ALLOWANONYMOUS: "true"
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD}
+      XPACK_SECURITY_ENCRYPTIONKEY: ${KIBANA_SESSION_KEY:?set KIBANA_SESSION_KEY}
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_OBJECTS_KEY:?set KIBANA_OBJECTS_KEY}
+      XPACK_REPORTING_ENCRYPTIONKEY: ${KIBANA_REPORTING_KEY:?set KIBANA_REPORTING_KEY}
+    ports:
+      - "127.0.0.1:${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 15
+    restart: unless-stopped
+  kibana-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    entrypoint: ["/bin/bash", "/setup/kibana-data-views.sh"]
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+    volumes:
+      - ./deploy/elk:/setup:ro
+    depends_on:
+      kibana:
+        condition: service_healthy
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.0
+    environment:
+      ELASTICSEARCH_INGEST_PASSWORD: ${ELASTICSEARCH_INGEST_PASSWORD:?set ELASTICSEARCH_INGEST_PASSWORD}
+      LS_JAVA_OPTS: ${LOGSTASH_JAVA_OPTS:--Xms512m -Xmx512m}
+      XPACK_MONITORING_ENABLED: "false"
+      QUEUE_TYPE: persisted
+      QUEUE_MAX_BYTES: ${LOGSTASH_QUEUE_MAX_BYTES:-512mb}
+    volumes:
+      - ./deploy/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - logstashdata:/usr/share/logstash/data
+    depends_on:
+      elasticsearch-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/5044"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 24
+    restart: unless-stopped
+volumes:
+  logstashdata:

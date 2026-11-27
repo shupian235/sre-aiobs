@@ -1,0 +1,13 @@
+services:
+  nginx-collector:
+    command:
+      - filebeat
+      - -e
+      - --strict.perms=false
+      - -E
+      - output.elasticsearch.enabled=false
+      - -E
+      - 'output.logstash.hosts=["logstash:5044"]'
+    depends_on:
+      logstash:
+        condition: service_healthy

@@ -31,3 +31,13 @@ request _ingest/pipeline/sre_aiobs_nginx_geoip </setup/nginx-geoip-pipeline.json
 request _index_template/sre_aiobs_nginx </setup/nginx-index-template.json
 request _index_template/sre_aiobs_application </setup/application-index-template.json
 request _index_template/sre_aiobs_vulnerability </setup/vulnerability-index-template.json
+
+if [[ -n ${KIBANA_SYSTEM_PASSWORD:-} ]]; then
+  if [[ ! $KIBANA_SYSTEM_PASSWORD =~ ^[0-9a-fA-F]{32,128}$ ]]; then
+    printf 'Kibana system password must be 32–128 hexadecimal characters.\n' >&2
+    exit 1
+  fi
+  request _security/user/kibana_system/_password <<JSON
+{"password":"$KIBANA_SYSTEM_PASSWORD"}
+JSON
+fi

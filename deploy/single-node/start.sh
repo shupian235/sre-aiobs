@@ -6,13 +6,15 @@ check=false
 elasticsearch=false
 gateway=false
 collector=false
+elk=false
 for arg in "$@"; do
   case "$arg" in
     --check) check=true ;;
+    --with-elk) elk=true; elasticsearch=true ;;
     --with-elasticsearch) elasticsearch=true ;;
     --with-nginx-collector) collector=true; elasticsearch=true ;;
     --with-ingest-gateway) gateway=true; elasticsearch=true ;;
-    *) printf '用法: %s [--check] [--with-elasticsearch] [--with-ingest-gateway] [--with-nginx-collector]\n' "$0" >&2; exit 2 ;;
+    *) printf '用法: %s [--check] [--with-elasticsearch] [--with-elk] [--with-ingest-gateway] [--with-nginx-collector]\n' "$0" >&2; exit 2 ;;
   esac
 done
 
@@ -46,15 +48,20 @@ ENV
   )
 fi
 
+secrets=()
 if $elasticsearch; then
-  for key in ELASTIC_PASSWORD ELASTICSEARCH_READER_PASSWORD ELASTICSEARCH_INGEST_PASSWORD; do
-    if ! grep -q "^$key=" .env; then
-      command -v openssl >/dev/null || { printf '生成 Elasticsearch 密码需要 OpenSSL。\n' >&2; exit 1; }
-      value=$(openssl rand -hex 24)
-      printf '%s=%s\n' "$key" "$value" >>.env
-    fi
-  done
+  secrets+=(ELASTIC_PASSWORD ELASTICSEARCH_READER_PASSWORD ELASTICSEARCH_INGEST_PASSWORD)
 fi
+if $elk; then
+  secrets+=(KIBANA_SYSTEM_PASSWORD KIBANA_SESSION_KEY KIBANA_OBJECTS_KEY KIBANA_REPORTING_KEY)
+fi
+for key in "${secrets[@]}"; do
+  if ! grep -q "^$key=" .env; then
+    command -v openssl >/dev/null || { printf '生成部署密钥需要 OpenSSL。\n' >&2; exit 1; }
+    value=$(openssl rand -hex 24)
+    printf '%s=%s\n' "$key" "$value" >>.env
+  fi
+done
 
 if [[ ! -e config.yaml ]]; then
   # Contains field mappings and addresses only. Secrets live in .env.
@@ -67,15 +74,22 @@ compose=(docker compose --env-file .env -f compose.yaml -f compose.victoriametri
 if $elasticsearch; then compose+=(-f compose.elasticsearch.yaml); fi
 if $gateway; then compose+=(-f compose.elasticsearch-ingress.yaml); fi
 if $collector; then compose+=(-f compose.nginx-collector.yaml); fi
+if $elk; then
+  compose+=(-f compose.elk.yaml)
+  if $collector; then compose+=(-f compose.nginx-collector-logstash.yaml); fi
+fi
 "${compose[@]}" config --quiet
 if $check; then
   printf '配置通过，运行 %s 启动。\n' "$0"
   exit 0
 fi
 
-"${compose[@]}" up -d --build --wait --wait-timeout 180
+"${compose[@]}" up -d --build --wait --wait-timeout "${COMPOSE_WAIT_TIMEOUT:-300}"
 printf '\n容器状态与端口映射\n'
 "${compose[@]}" ps -a
 printf '\n默认入口\n'
 printf '  运维看板 http://127.0.0.1:8080/（operator，密码见 .env 中的 DASHBOARD_PASSWORD）\n'
 printf '  Grafana  http://127.0.0.1:3001/（admin，密码见 .env 中的 GRAFANA_ADMIN_PASSWORD）\n'
+if $elk; then
+  printf '  Kibana   http://127.0.0.1:%s/（elastic，密码见 .env 中的 ELASTIC_PASSWORD）\n' "${KIBANA_PORT:-5601}"
+fi
