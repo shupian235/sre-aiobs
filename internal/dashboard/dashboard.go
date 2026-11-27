@@ -61,8 +61,14 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 	if backend, ok := reader.(reportStore); ok {
 		mountReports(mux, backend, protected)
 	}
+	if backend, ok := reader.(collectorStore); ok {
+		mountCollectors(mux, backend, access, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
+	}
+	if backend, ok := reader.(runtimeStore); ok {
+		mountRuntime(mux, backend, access, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
+	}
 	if backend, ok := reader.(alertStore); ok {
-		mountAlerts(mux, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"), access.TelegramDestination)
+		mountAlerts(mux, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"), access.TelegramDestination, access.SettingsEncrypted)
 	}
 	if access.Current != nil {
 		mountSources(mux, access, protected)

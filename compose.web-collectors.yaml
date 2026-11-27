@@ -1,0 +1,21 @@
+# Activate only on an AIOps controller with network access to the authorized collectors.
+services:
+  app:
+    image: sre-aiobs:collector-controller
+    build:
+      context: .
+      target: collector-controller
+    environment:
+      AIOBS_ANSIBLE_BIN: /usr/bin/ansible-playbook
+      AIOBS_ANSIBLE_PLAYBOOK_DIR: /opt/aiobs/playbooks
+      AIOBS_COLLECTOR_KNOWN_HOSTS: /run/aiobs-ssh/known_hosts
+      AIOBS_COLLECTOR_SSH_KEY: /run/aiobs-ssh/id
+      AIOBS_COLLECTOR_CA_FILE: ${AIOBS_COLLECTOR_CA_FILE:-}
+    volumes:
+      - ${AIOBS_COLLECTOR_SSH_DIR:?set AIOBS_COLLECTOR_SSH_DIR}:/run/aiobs-ssh:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777

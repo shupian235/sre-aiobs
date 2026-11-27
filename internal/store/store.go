@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -16,8 +17,9 @@ import (
 )
 
 type Store struct {
-	DB    *pgxpool.Pool
-	Redis *redis.Client
+	SettingsCipher cipher.AEAD
+	DB             *pgxpool.Pool
+	Redis          *redis.Client
 }
 
 func Token() string {

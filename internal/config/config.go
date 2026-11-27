@@ -13,14 +13,15 @@ import (
 )
 
 type Source struct {
-	Name         string
-	Kind         string
-	URL          string
-	Index        string
-	Environment  string
-	Region       string
-	AWSAccountID string `yaml:"aws_account_id"`
-	AlarmPrefix  string `yaml:"alarm_prefix"`
+	Name           string
+	Kind           string
+	URL            string
+	Index          string
+	Environment    string
+	Region         string
+	AWSAccountID   string          `yaml:"aws_account_id"`
+	AlarmPrefix    string          `yaml:"alarm_prefix"`
+	AWSCredentials *AWSCredentials `yaml:"-" json:"-"`
 
 	CredentialEnv string `yaml:"credential_env"`
 	Username      string

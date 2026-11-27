@@ -7,14 +7,16 @@ elasticsearch=false
 gateway=false
 collector=false
 elk=false
+web_collectors=false
 for arg in "$@"; do
   case "$arg" in
     --check) check=true ;;
+    --with-web-collectors) web_collectors=true ;;
     --with-elk) elk=true; elasticsearch=true ;;
     --with-elasticsearch) elasticsearch=true ;;
     --with-nginx-collector) collector=true; elasticsearch=true ;;
     --with-ingest-gateway) gateway=true; elasticsearch=true ;;
-    *) printf '用法: %s [--check] [--with-elasticsearch] [--with-elk] [--with-ingest-gateway] [--with-nginx-collector]\n' "$0" >&2; exit 2 ;;
+    *) printf '用法: %s [--check] [--with-elasticsearch] [--with-elk] [--with-ingest-gateway] [--with-nginx-collector] [--with-web-collectors]\n' "$0" >&2; exit 2 ;;
   esac
 done
 
@@ -52,6 +54,12 @@ ENV
   )
 fi
 
+if ! grep -q '^AIOBS_SETTINGS_KEY=' .env; then
+  command -v openssl >/dev/null || { printf '生成配置加密密钥需要 OpenSSL。\n' >&2; exit 1; }
+  value=$(openssl rand -base64 32)
+  printf 'AIOBS_SETTINGS_KEY=%s\n' "$value" >>.env
+fi
+
 secrets=()
 if $elasticsearch; then
   secrets+=(ELASTIC_PASSWORD ELASTICSEARCH_READER_PASSWORD ELASTICSEARCH_INGEST_PASSWORD)
@@ -82,6 +90,7 @@ if $elk; then
   compose+=(-f compose.elk.yaml)
   if $collector; then compose+=(-f compose.nginx-collector-logstash.yaml); fi
 fi
+if $web_collectors; then compose+=(-f compose.web-collectors.yaml); fi
 "${compose[@]}" config --quiet
 if $check; then
   printf '配置通过，运行 %s 启动。\n' "$0"

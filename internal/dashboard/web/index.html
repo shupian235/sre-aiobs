@@ -17,6 +17,8 @@
     <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
     <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 安全巡检</a>
     <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
+    <a href="#collector-settings"><span aria-hidden="true">⇄</span>采集部署</a>
+    <a href="#runtime-settings"><span aria-hidden="true">⚙</span>运行配置</a>
     <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
     <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
   </nav>
@@ -57,6 +59,74 @@
       <p class="source-hint">可信扫描源报告的 CVE 会汇总进邮件小时报告和日报。<a href="#alert-settings">邮件设置</a></p>
       <div class="table-wrap"><table><thead><tr><th>CVE</th><th>扫描记录数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="vulnerability-body"></tbody></table></div>
     </section>
+    <section id="collector-settings" class="panel listing">
+      <div class="panel-head"><div><h2>采集部署</h2><p>先保存主机清单，检查 SSH 与采集前置条件，再提交批量部署。</p></div></div>
+      <form id="collector-form" autocomplete="off">
+        <fieldset id="collector-fields" disabled>
+          <div class="runtime-grid">
+            <label>SSH 用户<input id="collector-user" maxlength="32" placeholder="deployer" required></label>
+            <label>Elasticsearch 写入网关<input id="collector-gateway" type="url" maxlength="270" placeholder="https://logs.internal.example:9443" required></label>
+            <label>Nginx 日志目录<input id="collector-dir" maxlength="512" value="/var/log/nginx" required></label>
+            <label>日志文件匹配<input id="collector-glob" maxlength="120" value="access.log" required></label>
+            <label>采集写入密码<input id="collector-secret" type="password" maxlength="128"></label>
+            <label>告警管理密码<input id="collector-password" type="password" required></label>
+          </div>
+          <p id="collector-credential"></p>
+          <h3>采集主机</h3>
+          <div class="table-wrap"><table><thead><tr><th>采集主机名</th><th>SSH 地址</th><th>端口</th><th></th></tr></thead><tbody id="collector-hosts"></tbody></table></div>
+          <button id="collector-add" type="button">添加主机</button>
+          <button type="submit">批量保存主机</button>
+          <button id="collector-check" type="button" disabled>检查连接</button>
+          <button id="collector-deploy" type="button" disabled>批量部署 Filebeat</button>
+        </fieldset>
+        <p id="collector-status" role="status">正在读取采集配置…</p>
+      </form>
+      <h3>最近部署任务</h3>
+      <div class="table-wrap"><table><thead><tr><th>操作</th><th>状态</th><th>主机数</th><th>开始时间</th><th>Run ID</th></tr></thead><tbody id="collector-runs"></tbody></table></div>
+    </section>
+    <section id="runtime-settings" class="panel listing">
+      <div class="panel-head"><div><h2>运行配置</h2><p>配置 AWS 巡检、检测阈值和 AI 分析。已保存的密钥只显示状态。</p></div></div>
+      <form id="runtime-form" autocomplete="off">
+        <fieldset id="runtime-fields" disabled>
+          <label class="runtime-wide">AWS 巡检来源
+            <textarea id="runtime-aws" rows="7" spellcheck="false" placeholder='[{"name":"aws-prod","environment":"production","region":"ap-southeast-1","account_id":"","alarm_prefix":""}]'></textarea>
+          </label>
+          <div class="runtime-grid">
+            <label>AWS Access Key ID<input id="runtime-access" maxlength="128"></label>
+            <label>AWS Secret Access Key<input id="runtime-secret" type="password" maxlength="128"></label>
+            <label>STS Session Token<input id="runtime-token" type="password" maxlength="4096"></label>
+          </div>
+          <p id="runtime-credentials" role="status"></p>
+          <label><input id="runtime-clear" type="checkbox">清除 Web 凭据并使用部署身份</label>
+          <h3>巡检阈值</h3>
+          <label><input id="runtime-rules-enabled" type="checkbox">使用 Web 阈值覆盖部署配置</label>
+          <div class="runtime-grid">
+            <label>IP 请求阈值<input id="runtime-ip" type="number" min="1" value="1000"></label>
+            <label>URI 请求阈值<input id="runtime-uri" type="number" min="1" value="2000"></label>
+            <label>错误请求阈值<input id="runtime-errors" type="number" min="1" value="100"></label>
+            <label>P95 阈值（秒）<input id="runtime-latency" type="number" step="any" min="0.001" value="1"></label>
+            <label>历史基线倍数<input id="runtime-baseline" type="number" step="any" min="1.01" value="3"></label>
+            <label>后端错误阈值<input id="runtime-backend-errors" type="number" min="1" placeholder="沿用部署配置"></label>
+            <label>后端警告阈值<input id="runtime-backend-warnings" type="number" min="0" placeholder="沿用部署配置"></label>
+            <label>业务错误阈值<input id="runtime-business-errors" type="number" min="0" placeholder="沿用部署配置"></label>
+            <label>依赖故障阈值<input id="runtime-dependency-errors" type="number" min="1" placeholder="沿用部署配置"></label>
+            <label>Nginx 认证失败和限流阈值<input id="runtime-nginx-burst" type="number" min="1" placeholder="沿用部署配置"></label>
+          </div>
+          <h3>AI 分析</h3>
+          <label><input id="runtime-ai-enabled" type="checkbox">使用 Web AI 配置覆盖部署配置</label>
+          <div class="runtime-grid">
+            <label>服务<select id="runtime-provider"><option value="">关闭</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></label>
+            <label>模型<input id="runtime-model" maxlength="120"></label>
+            <label>每日请求上限<input id="runtime-budget" type="number" min="1" max="100000" value="100"></label>
+          </div>
+          <div class="runtime-grid">
+            <label>告警管理密码<input id="runtime-password" type="password" required></label>
+          </div>
+          <button type="submit" id="runtime-save">保存运行配置</button>
+        </fieldset>
+        <p id="runtime-status" role="status">正在加载运行配置…</p>
+      </form>
+    </section>
     <section id="alert-settings" class="panel listing">
       <div class="panel-head"><div><h2>告警设置</h2><p>实时告警按风险评分与冷却时间发送。通道凭据在部署端配置。</p></div></div>
       <div class="channel-setup" aria-label="通知渠道配置">
@@ -75,11 +145,11 @@
             <label><input id="alert-telegram" type="checkbox">Telegram 实时告警 <small id="telegram-state"></small></label>
             <label><input id="alert-email" type="checkbox">邮件小时报告与日报 <small id="email-state"></small></label>
           </div>
-          <div class="alert-fields email-destination">
+          <fieldset class="alert-fields email-destination" id="alert-email-destination" disabled>
             <label>SES 发件地址<input id="email-from" type="email" maxlength="254" placeholder="security@example.net"></label>
             <label>SES 收件地址<textarea id="email-to" rows="3" maxlength="12750" placeholder="每行一个，也可用逗号分隔"></textarea></label>
             <label>SES 区域<input id="email-region" type="text" maxlength="40" placeholder="留空使用部署环境的区域"></label>
-          </div>
+          </fieldset>
         </fieldset>
         <div id="alert-actions" hidden><label>告警管理密码 <input id="alert-password" type="password" required></label><button id="alert-save" type="submit">保存设置</button></div>
         <p id="alert-status" role="status">加载设置中…</p>

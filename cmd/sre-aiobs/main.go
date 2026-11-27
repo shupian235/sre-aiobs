@@ -23,6 +23,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"sre-aiobs/internal/ai"
 	"sre-aiobs/internal/awsinspect"
+	"sre-aiobs/internal/collector"
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/dashboard"
 	"sre-aiobs/internal/notify"
@@ -90,7 +91,36 @@ func run() error {
 	}
 	cache := redis.NewClient(opts)
 	defer cache.Close()
-	st := store.Store{DB: db, Redis: cache}
+	settingsCipher, err := store.NewSettingsCipher(os.Getenv("AIOBS_SETTINGS_KEY"))
+	if err != nil {
+		return err
+	}
+	st := store.Store{DB: db, Redis: cache, SettingsCipher: settingsCipher}
+	initCtx, cancelInit := context.WithTimeout(ctx, 10*time.Second)
+	err = st.EncryptLegacyEmail(initCtx)
+	if err == nil {
+		_, err = st.AlertSettings(initCtx)
+	}
+	cancelInit()
+	if err != nil {
+		return fmt.Errorf("email settings encryption migration: %w", err)
+	}
+	var baseConfig atomic.Pointer[config.Config]
+	deploymentConfig := c
+	baseConfig.Store(&deploymentConfig)
+	applyRuntime := func(base config.Config) (config.Config, error) {
+		lookupCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		defer cancel()
+		runtimeSettings, _, err := st.RuntimeSettings(lookupCtx)
+		if err != nil {
+			return base, errors.New("could not load encrypted runtime settings")
+		}
+		return runtimeSettings.Apply(base)
+	}
+	c, err = applyRuntime(c)
+	if err != nil {
+		return err
+	}
 	client := &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	aws, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -164,6 +194,10 @@ func run() error {
 	initial := c
 	activeConfig.Store(&initial)
 	access := dashboard.SourceAccess{
+		WorkContext:         ctx,
+		Collector:           collector.Runner{Binary: os.Getenv("AIOBS_ANSIBLE_BIN"), PlaybookDir: os.Getenv("AIOBS_ANSIBLE_PLAYBOOK_DIR"), KnownHosts: os.Getenv("AIOBS_COLLECTOR_KNOWN_HOSTS"), PrivateKey: os.Getenv("AIOBS_COLLECTOR_SSH_KEY"), CAFile: os.Getenv("AIOBS_COLLECTOR_CA_FILE")},
+		SettingsEncrypted:   settingsCipher != nil,
+		BaseConfig:          func() config.Config { return *baseConfig.Load() },
 		CheckAWS:            inspector.Check,
 		Current:             func() []config.Source { return activeConfig.Load().Sources },
 		TelegramDestination: func() bool { return activeConfig.Load().TelegramChat != "" },
@@ -181,7 +215,7 @@ func run() error {
 		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 		defer cancel()
 		var migrated bool
-		err := db.QueryRow(ctx, "SELECT to_regclass('runs') IS NOT NULL AND to_regclass('alert_settings') IS NOT NULL AND to_regclass('source_route_settings') IS NOT NULL").Scan(&migrated)
+		err := db.QueryRow(ctx, "SELECT to_regclass('runs') IS NOT NULL AND to_regclass('alert_settings') IS NOT NULL AND to_regclass('source_route_settings') IS NOT NULL AND to_regclass('encrypted_settings') IS NOT NULL AND to_regclass('collector_runs') IS NOT NULL").Scan(&migrated)
 		if err != nil || !migrated || cache.Ping(ctx).Err() != nil {
 			http.Error(w, "dependencies unavailable", 503)
 			return
@@ -214,9 +248,14 @@ func run() error {
 		if next, err := config.Load(*path); err == nil {
 			next.Listen = c.Listen
 			next.GeoDB = c.GeoDB
-			activeConfig.Store(&next)
-			c = next
-			updateAI(c)
+			if resolved, err := applyRuntime(next); err == nil {
+				baseConfig.Store(&next)
+				activeConfig.Store(&resolved)
+				c = resolved
+				updateAI(c)
+			} else {
+				slog.Warn("saved settings reload rejected")
+			}
 		} else {
 			slog.Warn("configuration reload rejected")
 		}

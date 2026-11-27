@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -29,6 +30,9 @@ type Inspector struct {
 func (i Inspector) client(ctx context.Context, s config.Source) (alarmClient, error) {
 	cfg := i.Config
 	cfg.Region = s.Region
+	if keys := s.AWSCredentials; keys != nil {
+		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(keys.AccessKeyID, keys.SecretAccessKey, keys.SessionToken))
+	}
 	if s.AWSAccountID != "" {
 		identity, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {

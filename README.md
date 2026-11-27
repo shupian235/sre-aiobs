@@ -71,7 +71,7 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 | 运维看板 | `http://127.0.0.1:8080` | `operator`，密码见 `.env` 的 `DASHBOARD_PASSWORD` |
 | Kibana | `http://127.0.0.1:5601` | 初始账号 `elastic`，密码见 `.env` 的 `ELASTIC_PASSWORD` |
 
-Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板。已有 Elasticsearch 时，可通过 [部署手册](docs/deployment.md#日志源) 配置只读账号和索引。多机采集通过 [Ansible 与内网 HTTPS 网关](docs/deployment.md#elasticsearch-与-nginx-批量采集) 接入。已有配置升级请先检查 [迁移步骤](docs/update-and-configuration.md#部署升级)。
+Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板。已有 Elasticsearch 时，可通过 [部署手册](docs/deployment.md#日志源) 配置只读账号和索引。多机采集先启动 AIOps，再从「采集部署」配置并批量安装 Filebeat，参见 [采集部署步骤](docs/full-setup.md#远程-nginx-批量采集)。AWS、巡检阈值、AI、邮件和采集的界面配置见 [配置与加密](docs/web-runtime-settings.md)。已有配置升级请先检查 [迁移步骤](docs/update-and-configuration.md#部署升级)。
 
 ## Web 管理
 

@@ -351,6 +351,7 @@ async function loadAlertSettings() {
     byId("email-to").value=(email.to||[]).join("\n");
     byId("email-region").value=email.region||"";
     showEmailDestinationStatus(settings.email_configured);
+    byId("alert-email-destination").disabled=!settings.email_editable;
     byId("alert-fields").disabled=!settings.editable;
     byId("alert-actions").hidden=!settings.editable;
     status.textContent=settings.editable?"保存后应用于后续告警任务。":"请配置告警管理密码以启用修改。";
@@ -370,12 +371,12 @@ byId("alert-form").addEventListener("submit",async event=>{
   status.textContent="正在保存…";
   const settings={
     minimum_score:byId("minimum-score").valueAsNumber,
-    cooldown_minutes:byId("cooldown-minutes").valueAsNumber,
-    email_destination:{
+    cooldown_minutes:byId("cooldown-minutes").valueAsNumber
+  };
+  if (!byId("alert-email-destination").disabled) settings.email_destination={
       from:byId("email-from").value.trim(),
       to:byId("email-to").value.split(/[,\n]+/).map(address=>address.trim()).filter(Boolean),
       region:byId("email-region").value.trim()
-    }
   };
   for (const key of ["slack","telegram","email"]) settings[key]=byId("alert-"+key).checked;
   try {
@@ -388,7 +389,7 @@ byId("alert-form").addEventListener("submit",async event=>{
     else if (response.status===400) status.textContent="请检查风险阈值、邮件地址和 AWS 区域，收件地址最多 50 个。";
     else if (!response.ok) status.textContent="保存失败，请检查设置后重试。";
     else {
-      showEmailDestinationStatus(Boolean(settings.email_destination.from&&settings.email_destination.to.length));
+      if (settings.email_destination) showEmailDestinationStatus(Boolean(settings.email_destination.from&&settings.email_destination.to.length));
       status.textContent="已保存。后续告警任务将使用新设置。";
     }
   } catch {
@@ -399,5 +400,194 @@ byId("alert-form").addEventListener("submit",async event=>{
   }
 });
 
+let runtimeVersion=0;
+const runtimeNumberFields={ip:"runtime-ip",uri:"runtime-uri",errors:"runtime-errors",latency:"runtime-latency",baseline_multiplier:"runtime-baseline",backend_errors:"runtime-backend-errors",backend_warnings:"runtime-backend-warnings",business_errors:"runtime-business-errors",dependency_errors:"runtime-dependency-errors",nginx_burst:"runtime-nginx-burst"};
+async function loadRuntimeSettings() {
+  const status=byId("runtime-status");
+  try {
+    const response=await fetch("/api/runtime-settings");
+    if (!response.ok) throw new Error();
+    const settings=await response.json();
+    runtimeVersion=settings.version;
+    byId("runtime-aws").value=JSON.stringify(settings.aws,null,2);
+    byId("runtime-credentials").textContent=settings.credentials_configured?"已保存 AWS 凭据。留空可保留。":"使用部署环境的 AWS 凭据或 IAM Role。";
+    byId("runtime-rules-enabled").checked=Boolean(settings.rules);
+    if (settings.rules) for (const [key,id] of Object.entries(runtimeNumberFields)) if (settings.rules[key]!==undefined) byId(id).value=settings.rules[key];
+    byId("runtime-ai-enabled").checked=Boolean(settings.ai);
+    byId("runtime-provider").value=settings.ai?.provider||"";
+    byId("runtime-model").value=settings.ai?.model||"";
+    byId("runtime-budget").value=settings.ai?.daily_requests||100;
+    byId("runtime-fields").disabled=!settings.editable;
+    status.textContent=settings.editable?"保存后，后续巡检周期会读取新配置。":"需要在部署端设置配置加密密钥和告警管理密码。";
+  } catch {
+    status.textContent="无法加载运行配置。";
+  }
+}
+
+byId("runtime-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const status=byId("runtime-status");
+  const save=byId("runtime-save");
+  const secretFields=["runtime-access","runtime-secret","runtime-token","runtime-password"];
+  let aws;
+  try {
+    aws=JSON.parse(byId("runtime-aws").value||"[]");
+    if (!Array.isArray(aws)) throw new Error();
+  } catch {
+    status.textContent="AWS 来源必须是 JSON 数组。";
+    return;
+  }
+  const payload={aws,version:runtimeVersion,clear_credentials:byId("runtime-clear").checked};
+  const [access,secret,token,password]=secretFields.map(id=>byId(id).value.trim());
+  if (access||secret||token) payload.credentials={access_key_id:access,secret_access_key:secret,session_token:token};
+  if (byId("runtime-rules-enabled").checked) payload.rules=Object.fromEntries(Object.entries(runtimeNumberFields).filter(([,id])=>byId(id).value!=="").map(([key,id])=>[key,byId(id).valueAsNumber]));
+  if (byId("runtime-ai-enabled").checked) payload.ai={provider:byId("runtime-provider").value,model:byId("runtime-model").value.trim(),daily_requests:byId("runtime-budget").valueAsNumber};
+  save.disabled=true;
+  try {
+    const response=await fetch("/api/runtime-settings",{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Alert-Settings-Password":password},body:JSON.stringify(payload)
+    });
+    if (response.ok) {
+      byId("runtime-clear").checked=false;
+      await loadRuntimeSettings();
+      status.textContent="运行配置已加密保存，后续巡检周期会读取新配置。";
+    } else if (response.status===409) {
+      status.textContent="设置已被其他操作修改，请刷新后重新编辑。";
+    } else if (response.status===403) {
+      status.textContent="管理密码不正确，或配置加密尚未启用。";
+    } else {
+      status.textContent="保存失败，请检查 AWS 来源、凭据和巡检选项。";
+    }
+  } catch {
+    status.textContent="保存失败，请检查连接后重试。";
+  } finally {
+    for (const id of secretFields) byId(id).value="";
+    save.disabled=false;
+  }
+});
+
+loadRuntimeSettings();
 loadAlertSettings();
 loadSources();
+
+let collectorVersion=0;
+let collectorEnabled=false;
+let collectorBusy=false;
+let collectorPoll;
+const collectorInputFields={user:"collector-user",gateway:"collector-gateway",log_dir:"collector-dir",log_glob:"collector-glob"};
+
+function addCollectorHost(host={name:"",address:"",port:22}) {
+  const body=byId("collector-hosts");
+  if (body.rows.length>=50) return;
+  const row=body.insertRow();
+  for (const [key,label] of [["name","主机名"],["address","SSH 地址"],["port","SSH 端口"]]) {
+    const input=element("input");
+    input.setAttribute("aria-label",label);
+    input.dataset.field=key;
+    input.required=true;
+    input.type=key==="port"?"number":"text";
+    if (key==="port") { input.min=1; input.max=65535; }
+    else input.maxLength=key==="name"?128:253;
+    input.value=host[key];
+    row.insertCell().append(input);
+  }
+  const remove=element("button","删除");
+  remove.type="button";
+  remove.addEventListener("click",()=>row.remove());
+  row.insertCell().append(remove);
+}
+
+async function loadCollectors(full) {
+  const status=byId("collector-status");
+  try {
+    const response=await fetch("/api/collectors",{cache:"no-store"});
+    if (!response.ok) throw new Error();
+    const data=await response.json();
+    const runStatus={running:"运行中",succeeded:"成功",failed:"失败",cancelled:"已取消"};
+    rows(byId("collector-runs"),data.runs,5,run=>[run.action==="check"?"检查连接":"部署 Filebeat",
+      runStatus[run.status]||run.status,String(run.host_count),date.format(new Date(run.started_at)),run.id]);
+    collectorBusy=data.runs.some(run=>run.status==="running");
+    if (full) {
+      collectorVersion=data.version;
+      collectorEnabled=data.editable&&data.enabled;
+      byId("collector-fields").disabled=!data.editable;
+      byId("collector-credential").textContent=data.password_configured?"已加密保存采集写入密码。留空可保留。":"首次保存需要填写采集写入密码。";
+      for (const [key,id] of Object.entries(collectorInputFields)) if (data[key]) byId(id).value=data[key];
+      byId("collector-hosts").replaceChildren();
+      for (const host of data.hosts) addCollectorHost(host);
+      if (!data.hosts.length) addCollectorHost();
+      status.textContent=data.enabled?"保存主机后可提交连接检查或部署。":"启用 Ansible 控制器后即可从此页面执行部署。";
+    }
+    for (const action of ["check","deploy"]) byId("collector-"+action).disabled=!collectorEnabled||!collectorVersion||collectorBusy;
+    clearTimeout(collectorPoll);
+    if (collectorBusy) collectorPoll=setTimeout(()=>loadCollectors(false),2500);
+    return true;
+  } catch {
+    status.textContent="无法读取采集配置或任务状态。";
+    if (collectorBusy) collectorPoll=setTimeout(()=>loadCollectors(false),5000);
+    return false;
+  }
+}
+
+const collectorForm=byId("collector-form");
+byId("collector-add").addEventListener("click",()=>addCollectorHost());
+collectorForm.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const fields=byId("collector-fields");
+  const status=byId("collector-status");
+  const hosts=Array.from(byId("collector-hosts").rows,row=>{
+    const inputs=row.querySelectorAll("input");
+    return {name:inputs[0].value.trim(),address:inputs[1].value.trim(),port:inputs[2].valueAsNumber};
+  });
+  const payload={hosts,version:collectorVersion,password:byId("collector-secret").value.trim()};
+  for (const [key,id] of Object.entries(collectorInputFields)) payload[key]=byId(id).value.trim();
+  fields.disabled=true;
+  try {
+    const reply=await fetch("/api/collectors",{
+      method:"PUT",headers:{"Content-Type":"application/json","X-Alert-Settings-Password":byId("collector-password").value},
+      body:JSON.stringify(payload)
+    });
+    if (!reply.ok) {
+      status.textContent=reply.status===409?"配置已被修改，请刷新后重试。":"保存失败，请核对主机、网关、日志路径及密码。";
+    } else if (await loadCollectors(true)) status.textContent="批量配置已加密保存。";
+  } catch {
+    status.textContent="保存失败，请检查连接。";
+  } finally {
+    byId("collector-secret").value="";
+    byId("collector-password").value="";
+    fields.disabled=false;
+  }
+});
+
+async function submitCollectorRun(action) {
+  const status=byId("collector-status");
+  const password=byId("collector-password");
+  if (!password.reportValidity()) return;
+  if (action==="deploy"&&!window.confirm("部署将更新已保存主机上的 Filebeat。确认使用数据库中已保存的主机清单？")) return;
+  const fields=byId("collector-fields");
+  fields.disabled=true;
+  try {
+    const reply=await fetch("/api/collectors/runs",{
+      method:"POST",headers:{"Content-Type":"application/json","X-Alert-Settings-Password":password.value},
+      body:JSON.stringify({action,version:collectorVersion})
+    });
+    if (!reply.ok) {
+      status.textContent=reply.status===409?"有任务正在运行，或配置版本已变化。":"提交失败，请检查管理密码和控制器状态。";
+      await loadCollectors(false);
+      return;
+    }
+    const run=await reply.json();
+    status.textContent="已提交任务 "+run.id;
+    collectorBusy=true;
+    await loadCollectors(false);
+  } catch {
+    status.textContent="提交状态未知，请查看最近部署任务。";
+    await loadCollectors(false);
+  } finally {
+    password.value="";
+    fields.disabled=false;
+  }
+}
+byId("collector-check").addEventListener("click",()=>submitCollectorRun("check"));
+byId("collector-deploy").addEventListener("click",()=>submitCollectorRun("deploy"));
+loadCollectors(true);

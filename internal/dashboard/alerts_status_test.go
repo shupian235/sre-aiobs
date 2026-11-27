@@ -28,7 +28,7 @@ func TestAlertSettingsShowsConfiguredDestinationsWithoutSecrets(t *testing.T) {
 	mux := http.NewServeMux()
 	settings := platform.DefaultAlertSettings()
 	settings.EmailDestination = &platform.EmailDestination{From: "sender@example.net", To: []string{"ops@example.net"}}
-	mountAlerts(mux, &alertStatusFixture{settings: settings}, func(h http.Handler) http.HandlerFunc { return h.ServeHTTP }, "test", func() bool { return false })
+	mountAlerts(mux, &alertStatusFixture{settings: settings}, func(h http.Handler) http.HandlerFunc { return h.ServeHTTP }, "test", func() bool { return false }, true)
 	res := httptest.NewRecorder()
 	mux.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/alert-settings", nil))
 	var flags map[string]json.RawMessage
@@ -42,7 +42,7 @@ func TestAlertSettingsShowsConfiguredDestinationsWithoutSecrets(t *testing.T) {
 func TestAlertSettingsValidatesAndSavesEmailDestination(t *testing.T) {
 	mux := http.NewServeMux()
 	store := &alertStatusFixture{settings: platform.DefaultAlertSettings()}
-	mountAlerts(mux, store, func(h http.Handler) http.HandlerFunc { return h.ServeHTTP }, "test", nil)
+	mountAlerts(mux, store, func(h http.Handler) http.HandlerFunc { return h.ServeHTTP }, "test", nil, true)
 	save := func(destination, password string) int {
 		body := `{"minimum_score":85,"cooldown_minutes":15,"slack":true,"telegram":true,"email":true,"email_destination":` + destination + `}`
 		req := httptest.NewRequest(http.MethodPut, "/api/alert-settings", strings.NewReader(body))

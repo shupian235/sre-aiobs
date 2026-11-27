@@ -19,7 +19,7 @@ type alertStore interface {
 	SaveAlertSettings(context.Context, platform.AlertSettings) error
 }
 
-func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string, telegramDestination func() bool) {
+func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string, telegramDestination func() bool, encrypted bool) {
 	expected := sha256.Sum256([]byte(adminPassword))
 	const route = "/api/alert-settings"
 	mux.HandleFunc("GET "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,8 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 			TelegramConfigured bool `json:"telegram_configured"`
 			EmailConfigured    bool `json:"email_configured"`
 			Editable           bool `json:"editable"`
-		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", telegram && os.Getenv("TELEGRAM_BOT_TOKEN") != "", settings.EmailDestination.Configured(), adminPassword != ""})
+			EmailEditable      bool `json:"email_editable"`
+		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", telegram && os.Getenv("TELEGRAM_BOT_TOKEN") != "", settings.EmailDestination.Configured(), adminPassword != "", encrypted && adminPassword != ""})
 	})))
 	mux.HandleFunc("PUT "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		supplied := sha256.Sum256([]byte(r.Header.Get("X-Alert-Settings-Password")))
@@ -64,6 +65,10 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 		var trailing any
 		if decoder.Decode(&input) != nil || decoder.Decode(&trailing) != io.EOF || input.Telegram == nil || input.Slack == nil || input.Email == nil {
 			http.Error(w, "Invalid alert settings", 400)
+			return
+		}
+		if input.EmailDestination != nil && !encrypted {
+			http.Error(w, "Email encryption is not configured", 403)
 			return
 		}
 		settings := platform.AlertSettings{MinimumScore: input.MinimumScore, CooldownMinutes: input.CooldownMinutes, Telegram: *input.Telegram, Slack: *input.Slack, Email: *input.Email, EmailDestination: input.EmailDestination}

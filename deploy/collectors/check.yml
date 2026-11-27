@@ -1,0 +1,18 @@
+---
+- name: Check collector prerequisites over SSH
+  hosts: nginx_collectors
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check Ansible connectivity and sudo
+      ansible.builtin.ping:
+    - name: Check Docker Compose
+      ansible.builtin.command: docker compose version
+      changed_when: false
+    - name: Check Nginx log directory
+      ansible.builtin.stat:
+        path: "{{ collector_log_dir }}"
+      register: log_directory
+    - name: Require the Nginx log directory
+      ansible.builtin.assert:
+        that: log_directory.stat.isdir | default(false)

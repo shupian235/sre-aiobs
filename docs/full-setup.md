@@ -1,6 +1,6 @@
 # AIOps 平台完整搭建流程
 
-本手册从一台 Linux 主机开始，完成 ELK、采集端、AIOps 服务和中间件的部署。已有 Elasticsearch 的环境可以只部署 AIOps 服务与中间件。
+本手册从一台 Linux 主机开始，先启动 AIOps 与中间件，再通过界面部署 ELK 采集端。已有 Elasticsearch 的环境可以只部署 AIOps 服务与中间件。
 
 ## 1. 组件和数据流
 
@@ -63,22 +63,48 @@ NGINX_LOG_GLOB=sre-aiobs.jsonl
 
 ### 远程 Nginx 批量采集
 
-**1. 配置中心机 HTTPS 网关**
+**1. 先启动 AIOps 和 ELK**
 
-在中心机 `.env` 中填写实际内网地址和证书文件的绝对路径。证书需要覆盖采集端使用的网关域名。只向有权限的采集主机开放 9443。
+```bash
+./deploy/single-node/start.sh --with-elk
+```
+
+打开 `http://127.0.0.1:8080/`，使用 `operator` 和 `.env` 中的登录密码。若从其他电脑访问，通过 SSH 隧道转发中心机的 8080，或通过内网 HTTPS 反向代理访问。
+
+**2. 启用 HTTPS 写入网关和 Ansible 控制端**
+
+在中心机准备专用 SSH 私钥和已经通过带外方式核验的 `known_hosts`。按实际主机地址填写指纹，非 22 端口使用 `[host]:port` 形式。以下路径是示例。控制端容器以 UID/GID 65532 运行，需要读权限；私钥仅对该用户可读。采集主机的部署账号需允许使用专用密钥登录并执行当前 playbook 所需的非交互 sudo。
+
+```text
+/etc/sre-aiobs/collector-ssh/
+  id
+  known_hosts
+  ca.crt                 # 使用内网 CA 时
+```
+
+在中心机 `.env` 配置网关、TLS 和只读挂载目录。证书覆盖网关域名，防火墙仅向授权采集机开放 9443。
 
 ```dotenv
 ES_INGEST_BIND=10.0.0.10
 ES_INGEST_PORT=9443
 ES_INGEST_CERT=/etc/sre-aiobs/tls/fullchain.pem
 ES_INGEST_KEY=/etc/sre-aiobs/tls/privkey.pem
+AIOBS_COLLECTOR_SSH_DIR=/etc/sre-aiobs/collector-ssh
+# 网关使用公共 CA 时省略下一行。
+AIOBS_COLLECTOR_CA_FILE=/run/aiobs-ssh/ca.crt
 ```
 
 ```bash
-./deploy/single-node/start.sh --with-elk --with-ingest-gateway
+./deploy/single-node/start.sh --with-elk --with-ingest-gateway --with-web-collectors
 ```
 
-同一中心机也可以追加 `--with-nginx-collector` 采集本机日志。
+**3. 从 AIOps 批量部署**
+
+打开「采集部署」，填写采集机可访问的 HTTPS 网关地址、Nginx 日志目录、日志文件名、SSH 用户和 `.env` 中的 Elasticsearch 采集写入密码。把主机名、IP 或 DNS 地址和 SSH 端口添加到清单。批量保存后执行「检查连接」，确认通过后点击「批量部署 Filebeat」。在最近部署任务查询结果，随后到 Kibana 查看新进日志和采集主机名。其余界面配置见 [AIOps 界面配置与加密](web-runtime-settings.md)。
+
+#### 命令行部署方式
+
+命令行方式可用于未启用 Web 控制端的环境。
 
 **2. 准备 Ansible 控制机和采集机**
 

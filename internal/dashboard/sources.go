@@ -8,12 +8,17 @@ import (
 	"time"
 
 	"sre-aiobs/internal/awsinspect"
+	"sre-aiobs/internal/collector"
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/source"
 )
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
+	Collector           collector.Runner
+	WorkContext         context.Context
+	SettingsEncrypted   bool
+	BaseConfig          func() config.Config
 	CheckAWS            func(context.Context, config.Source) error
 	TelegramDestination func() bool
 	Login               *Login
