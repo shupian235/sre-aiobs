@@ -13,6 +13,7 @@ import (
 
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/detect"
+	"sre-aiobs/internal/metrics"
 	"sre-aiobs/internal/platform"
 	"sre-aiobs/internal/source"
 	"sre-aiobs/internal/store"
@@ -36,6 +37,7 @@ type Runner struct {
 	HTTP                       *http.Client
 	Notifier                   Notifier
 	Analyzer                   platform.Analyzer
+	Metrics                    metrics.Victoria
 	Geo                        detect.Geo
 	Runs, Failures, AIFailures atomic.Uint64
 }
@@ -85,7 +87,7 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 		if err != nil {
 			return err
 		}
-		events = detect.Evaluate(snapshot, history, c.Rules, s.Hosts, s.Routes, r.Geo)
+		events = detect.Evaluate(snapshot, history, c.Rules, s.Hosts, s.Routes, r.Geo, s.AllowedMethods...)
 		if r.Analyzer != nil && j.Kind != "five_minutes" {
 			if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) > 25*time.Second {
 				aiCtx, cancel := context.WithTimeout(ctx, min(15*time.Second, time.Until(deadline)-20*time.Second))
@@ -111,25 +113,29 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 		}
 	}
 	report.Snapshot, report.Events, report.Analysis = snapshot, events, analysis
+	report.MetricsURL = r.Metrics.Link(j)
+	var failures error
+	if r.Metrics.WriteURL != "" {
+		failures = r.Store.Notification(ctx, j.ID, "victoriametrics", func() error { return r.Metrics.Write(ctx, j, report) })
+	}
 	telegram := j.Kind == "minute" && c.TelegramChat != ""
 	slack := j.Kind == "minute" && os.Getenv("SLACK_WEBHOOK_URL") != ""
 	email := (j.Kind == "hour" || j.Kind == "day") && len(c.EmailTo) > 0
 	if !telegram && !slack && !email {
-		return nil
+		return failures
 	}
 	settings, err := r.Store.AlertSettings(ctx)
 	if err != nil {
-		return err
+		return errors.Join(failures, err)
 	}
-	var failures error
 	if telegram && settings.Telegram {
-		failures = r.Store.Notification(ctx, j.ID, "telegram", func() error { return r.Notifier.Telegram(ctx, c, report, settings) })
+		failures = errors.Join(failures, r.Store.Notification(ctx, j.ID, "telegram", func() error { return r.Notifier.Telegram(ctx, c, report, settings) }))
 	}
 	if slack && settings.Slack {
 		failures = errors.Join(failures, r.Store.Notification(ctx, j.ID, "slack", func() error { return r.Notifier.Slack(ctx, report, settings) }))
 	}
 	if email && settings.Email {
-		return r.Store.Notification(ctx, j.ID, "ses", func() error { return r.Notifier.Email(ctx, c, report) })
+		return errors.Join(failures, r.Store.Notification(ctx, j.ID, "ses", func() error { return r.Notifier.Email(ctx, c, report) }))
 	}
 	return failures
 }

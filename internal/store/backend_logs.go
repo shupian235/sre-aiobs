@@ -22,7 +22,7 @@ func (s Store) Vulnerabilities(ctx context.Context, source, kind string, since t
 }
 
 func (s Store) NginxRiskRoutes(ctx context.Context, source, kind string, since time.Time, minimum int) (BackendLogs, error) {
-	return s.ruleEvents(ctx, source, kind, since, minimum, []string{"sensitive_uri", "uri_frequency", "sql_injection", "xss", "path_traversal"})
+	return s.ruleEvents(ctx, source, kind, since, minimum, platform.NginxRules())
 }
 
 func (s Store) ruleEvents(ctx context.Context, source, kind string, since time.Time, minimum int, rules []string) (BackendLogs, error) {

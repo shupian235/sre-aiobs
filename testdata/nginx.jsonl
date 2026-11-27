@@ -1,2 +1,2 @@
-{"client_ip":"192.0.2.10","request_uri":"/api/health","host":"www.example.net","user_agent":"test-client","status":200,"request_time":0.012}
-{"client_ip":"192.0.2.20","request_uri":"/admin?token=fixture-only","host":"unexpected.example.net","user_agent":"synthetic-scanner","status":403,"request_time":0.135}
+{"client_ip":"192.0.2.10","request_uri":"/api/health","host":"www.example.net","user_agent":"test-client","status":200,"request_time":0.012,"method":"GET","tls_protocol":"TLSv1.3"}
+{"client_ip":"192.0.2.20","request_uri":"/admin?token=fixture-only","host":"unexpected.example.net","user_agent":"synthetic-scanner","status":403,"request_time":0.135,"method":"UNEXPECTED","tls_protocol":"TLSv1.1","waf_action":"blocked","waf_category":"protocol_violation"}

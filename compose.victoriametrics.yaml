@@ -1,0 +1,20 @@
+services:
+  app:
+    environment:
+      VICTORIAMETRICS_WRITE_URL: ${VICTORIAMETRICS_WRITE_URL:-http://victoriametrics:8428}
+      VICTORIAMETRICS_READ_URL: ${VICTORIAMETRICS_READ_URL:-http://127.0.0.1:8428}
+    depends_on:
+      victoriametrics:
+        condition: service_started
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.106.1
+    command:
+      - -storageDataPath=/victoria-metrics-data
+      - -retentionPeriod=30d
+      - -dedup.minScrapeInterval=1ms
+    volumes:
+      - vmdata:/victoria-metrics-data
+    ports:
+      - "127.0.0.1:${VICTORIAMETRICS_PORT:-8428}:8428"
+volumes:
+  vmdata:

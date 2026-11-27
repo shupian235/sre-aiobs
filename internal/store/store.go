@@ -189,3 +189,12 @@ func scheduleInterval(kind string) string {
 		return "24 hours"
 	}
 }
+
+// RunWindow resolves a dashboard run ID to its recorded aggregation window.
+func (s Store) RunWindow(ctx context.Context, id string) (platform.Job, error) {
+	var j platform.Job
+	j.ID = id
+	err := s.DB.QueryRow(ctx, `SELECT source,kind,window_start,window_end FROM runs WHERE id=$1`, id).
+		Scan(&j.Source, &j.Kind, &j.Window.Start, &j.Window.End)
+	return j, err
+}

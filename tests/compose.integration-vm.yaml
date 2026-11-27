@@ -1,0 +1,8 @@
+services:
+  app:
+    environment:
+      NO_PROXY: "elastic,postgres,redis,victoriametrics,localhost,127.0.0.1"
+      no_proxy: "elastic,postgres,redis,victoriametrics,localhost,127.0.0.1"
+  victoriametrics:
+    volumes: !reset []
+    tmpfs: [/victoria-metrics-data]

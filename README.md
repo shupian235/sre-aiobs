@@ -45,6 +45,8 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 go test ./...
 go vet ./...
 ./tests/compose.sh
+# 验证 VictoriaMetrics 真实写入和查询
+TEST_VICTORIAMETRICS=1 ./tests/compose.sh
 ```
 
 Compose 测试用独立的随机项目名，验证真实 Elasticsearch 日志聚合、PostgreSQL 持久化、Redis 锁、补偿重放幂等、风险事件、就绪探针和指标。测试依赖 Docker Compose v2、curl、OpenSSL、Python 3 和 GNU date。Loki 有 HTTP 契约测试，外部 AI 和通知渠道需用已获授权的测试账户验证。
@@ -94,3 +96,11 @@ routes:
 ### 漏洞检测邮件
 
 看板「漏洞检测」及 `GET /api/vulnerabilities` 汇总可信扫描源的 CVE 发现。配置扫描日志字段与 AWS SES 收件人后，漏洞发现随小时报告和日报发送。[接入说明](docs/deployment.md#漏洞发现与定期邮件)
+
+### Nginx 安全巡检
+
+「Nginx 安全巡检」汇总敏感资源、请求异常、认证失败、限流、WAF 分类、旧版 TLS 和上游故障等信号。各类别根据日志字段映射启用。[字段映射与规则说明](docs/deployment.md#nginx-安全巡检)
+
+### VictoriaMetrics 窗口指标
+
+可选接入 VictoriaMetrics 保存每个探测窗口的日志量、风险事件数、最高评分和探测完成标记。看板异常详情、Slack、Telegram 和邮件报告可提供同源、同粒度的时间序列查询链接。[部署方式](docs/deployment.md#victoriametrics)

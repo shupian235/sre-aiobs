@@ -15,7 +15,7 @@
     <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
     <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
     <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
-    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 风险接口</a>
+    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 安全巡检</a>
     <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
     <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
     <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
@@ -47,8 +47,8 @@
       <div class="table-wrap"><table><thead><tr><th>数据源</th><th>类型</th><th>环境</th><th>探测能力</th><th>连通性</th></tr></thead><tbody id="source-body"></tbody></table></div>
     </section>
     <section id="nginx-routes" class="panel listing">
-      <div class="panel-head"><div><h2>Nginx 风险接口</h2><p id="nginx-status" role="status">正在加载接口事件…</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>接口</th><th>检测规则</th><th>风险评分</th><th>命中请求数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
+      <div class="panel-head"><div><h2>Nginx 安全巡检</h2><p id="nginx-status" role="status">正在加载巡检事件…</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>接口或类别</th><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>命中数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
     </section>
     <section id="vulnerability-findings" class="panel listing">
       <div class="panel-head"><div><h2>漏洞检测</h2><p id="vulnerability-status" role="status">正在加载漏洞发现…</p></div></div>

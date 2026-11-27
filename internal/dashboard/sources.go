@@ -13,8 +13,9 @@ import (
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
-	Current func() []config.Source
-	HTTP    *http.Client
+	MetricsLink MetricsLink
+	Current     func() []config.Source
+	HTTP        *http.Client
 }
 
 func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Handler) http.HandlerFunc) {

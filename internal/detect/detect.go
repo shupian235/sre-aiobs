@@ -23,7 +23,7 @@ var signatures = map[string]*regexp.Regexp{
 	"path_traversal": regexp.MustCompile(`(?:^|[/\\])\.\.(?:[/\\]|$)`),
 }
 
-func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rules, hosts []string, routes []config.Route, geo Geo) []platform.Event {
+func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rules, hosts []string, routes []config.Route, geo Geo, allowedMethods ...string) []platform.Event {
 	sensitive, agents := []*regexp.Regexp{}, []*regexp.Regexp{}
 	for _, v := range rules.Sensitive {
 		sensitive = append(sensitive, regexp.MustCompile(v))
@@ -72,6 +72,13 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 			}
 		}
 		events = append(events, event)
+	}
+	hasIPMethod := false
+	for _, bucket := range s.Buckets {
+		if bucket.Dimension == "ip_method" {
+			hasIPMethod = true
+			break
+		}
 	}
 	for _, b := range s.Buckets {
 		ip, value := "", b.Value
@@ -127,15 +134,7 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 				}
 				decoded = next
 			}
-			encodedPath, _, _ := strings.Cut(value, "?")
-			path := encodedPath
-			for i := 0; i < 2; i++ {
-				next, err := url.PathUnescape(path)
-				if err != nil || next == path {
-					break
-				}
-				path = next
-			}
+			path := uriPath(value)
 			if ip == "" && exceeds(rules.URI) {
 				add("uri_frequency", "", b.Count, 35)
 				events[len(events)-1].Target = routeTarget(path)
@@ -147,6 +146,11 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 					break
 				}
 			}
+			if sensitiveArtifact.MatchString(path) {
+				add("nginx_sensitive_artifact", ip, b.Count, 85)
+				events[len(events)-1].Target = routeTarget(path)
+			}
+
 			for rule, pattern := range signatures {
 				if pattern.MatchString(decoded) {
 					add(rule, ip, b.Count, 85)
@@ -164,7 +168,47 @@ func Evaluate(s platform.Snapshot, history []platform.Snapshot, rules config.Rul
 					break
 				}
 			}
+		case "method":
+			if unexpectedMethod(value, allowedMethods) && (b.Dimension == "ip_method" || !hasIPMethod) {
+				add("nginx_unexpected_method", ip, b.Count, 85)
+			}
+		case "waf":
+			switch strings.ToLower(strings.TrimSpace(value)) {
+			case "block", "blocked", "deny", "denied", "drop", "dropped", "reject", "rejected":
+				add("nginx_waf_block", "", b.Count, 85)
+			}
+		case "wafrule":
+			if category := wafCategory(value); category != "" {
+				add("nginx_waf_category", "", b.Count, 85)
+				events[len(events)-1].Target = category
+			}
+		case "tls":
+			switch strings.ToLower(strings.TrimSpace(value)) {
+			case "sslv2", "sslv3", "tlsv1", "tlsv1.0", "tlsv1.1", "tls1.0", "tls1.1":
+				add("nginx_legacy_tls", "", b.Count, 65)
+			}
+		case "upstream":
+			if exceeds(rules.NginxBurst) && hasUpstreamError(value) {
+				add("nginx_upstream_error", "", b.Count, 75)
+			}
+		case "uri_status":
+			uri, status, ok := strings.Cut(b.Value, "\x00")
+			if ok && exceeds(rules.NginxBurst) && (status == "429" || status == "502" || status == "503" || status == "504") {
+				add("nginx_route_error", "", b.Count, 75)
+				events[len(events)-1].Target = routeTarget(uriPath(uri))
+			}
+
 		case "status":
+			if ip != "" && exceeds(rules.NginxBurst) {
+				switch value {
+				case "401", "403":
+					add("nginx_auth_failure_burst", ip, b.Count, 80)
+				case "404":
+					add("nginx_not_found_burst", ip, b.Count, 75)
+				case "429":
+					add("nginx_rate_limit_burst", ip, b.Count, 80)
+				}
+			}
 			if len(value) == 3 && (value[0] == '4' || value[0] == '5') && exceeds(rules.Errors) {
 				add("http_status", ip, b.Count, 50)
 			}

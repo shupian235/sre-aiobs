@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"regexp"
+	"slices"
 	"sync"
 	"time"
 
@@ -32,9 +33,10 @@ var code = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,40}$`)
 var rules = map[string]bool{"sql_injection": true, "xss": true, "path_traversal": true, "ip_frequency": true, "uri_frequency": true, "sensitive_uri": true, "unexpected_host": true, "unexpected_user_agent": true, "http_status": true, "latency_p95": true, "correlated": true, "backend_critical_log": true, "backend_error_spike": true, "backend_exception": true, "backend_dependency_failure": true}
 
 func sanitize(events []platform.Event) []platform.Event {
+	nginxRules := platform.NginxRules()
 	safe := make([]platform.Event, 0, 20)
 	for _, e := range events {
-		if e.Score < 65 || !rules[e.Rule] {
+		if e.Score < 65 || (!rules[e.Rule] && !slices.Contains(nginxRules, e.Rule)) {
 			continue
 		}
 		addr, err := netip.ParseAddr(e.IP)

@@ -138,3 +138,35 @@ Elasticsearch 使用可聚合字段。Loki 可将相同逻辑字段映射到现�
 探测任务按窗口聚合 CVE。同一窗口中同一 CVE 合并计数。看板和 `GET /api/vulnerabilities` 展示报告的 CVE、扫描记录数和来源。看板通用风险筛选使用固定的分类优先级 80，漏洞真实严重度以原扫描报告为准。
 
 配置现有 AWS SES 的 `email_from`、`email_to` 和 `AWS_REGION`，再在看板「告警设置」启用「邮件小时报告与日报」。UTC 每个整点和每日零点为各扫描数据源发送报告，即使窗口内没有 CVE。邮件仍使用现有投递重试和审计状态。
+
+## Nginx 安全巡检
+
+看板「Nginx 安全巡检」和 `GET /api/nginx-risk-routes` 按数据源、时间和评分查看巡检命中。事件包含规则、次数、已有的客户端 IP 以及已配置的路由名称。未映射的 URI 路径展示哈希。
+
+| 字段映射 | 巡检内容 |
+| --- | --- |
+| `ip`、`uri`、`host`、`ua` | 高频访问、异常 Host 或 User-Agent、敏感文件和路径、SQL 注入、XSS、路径遍历特征 |
+| `status` 与 `ip` 或 `uri` | 单 IP 的 401、403、404、429 激增，接口级的 429、502、503、504 激增 |
+| `method` | 与 `sources[].allowed_methods` 不符的请求方法 |
+| `waf`、`wafrule` | WAF 拦截动作与可信 WAF 日志提供的归一化安全分类 |
+| `tls`、`upstream`、`latency` | 旧版 TLS、上游错误激增和 P95 延迟异常 |
+
+`rules.nginx_burst` 默认每窗口 20 条，同时应用历史基线倍率。WAF 分类字段应来自已有可信规则，使用相应归一化标识，例如 `ssrf`、`command_injection`、`request_smuggling`、`deserialization` 或 `upload_abuse`。巡检结果表示日志中的信号，需结合 WAF 记录、认证审计或漏洞扫描结果复核。
+
+## VictoriaMetrics
+
+使用已有 VictoriaMetrics 时，注入 `VICTORIAMETRICS_WRITE_URL`。看板和通知需要查询链接时，配置浏览器可访问的 `VICTORIAMETRICS_READ_URL`。两项都填写服务或网关基础地址，写入和查询的 API 路径由应用添加。单节点通常使用相同的服务基础地址，集群版的写入和查询基础路径分别可为 `/insert/0/prometheus` 和 `/select/0/prometheus`。写入网关需要 Bearer Token 时，通过环境变量或 Secret 注入 `VICTORIAMETRICS_WRITE_TOKEN`。查询侧由现有网关负责认证。
+
+本地 Compose 可一起启动 VictoriaMetrics：
+
+```sh
+docker compose -f compose.yaml -f compose.victoriametrics.yaml up -d --build
+```
+
+默认使用持久卷和 30 天保留期，宿主机回环端口为 8428。远程访问时将 `VICTORIAMETRICS_READ_URL` 改为使用者能访问的内网 HTTPS 地址。应用通过 Prometheus import 接口写入，按 `source`、`kind` 标记窗口样本，并使用窗口结束时间作为时间戳。
+
+- `sre_aiobs_window_logs` 保存窗口内日志条数。
+- `sre_aiobs_window_risk_events` 和 `sre_aiobs_window_high_risk_events` 保存事件及高风险事件条数。
+- `sre_aiobs_window_max_risk_score` 和 `sre_aiobs_window_evaluated` 保存最高风险分与探测完成标记。
+
+异常链接按对应任务窗口查询时间序列，打开后显示 VictoriaMetrics 的范围查询结果。启用前已完成的任务历史保留在 PostgreSQL，VictoriaMetrics 从启用后完成的窗口开始写入。原始日志与事件明细仍分别由日志源和 PostgreSQL 提供。发送失败会通过现有任务机制重试，同一任务的已成功告警沿用投递去重。样本标签不包含 IP、URI、凭据或 Run ID。

@@ -31,6 +31,7 @@ type Analysis struct {
 	Actions  []string `json:"actions"`
 }
 type Report struct {
+	MetricsURL                 string
 	VulnerabilityScan          bool
 	Source, Index, Environment string
 	Window                     Window

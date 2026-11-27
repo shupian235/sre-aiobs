@@ -7,6 +7,7 @@ sources:
     credential_env: ELASTICSEARCH_API_KEY
     index: nginx-access-*
     hosts: [www.example.net]
+    allowed_methods: [GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS]
     routes:
       - label: /admin
         pattern: '^/admin(?:/|$)'
@@ -18,6 +19,12 @@ sources:
       ua: user_agent.original.keyword
       status: http.response.status_code
       latency: nginx.request_time
+      # 按实际索引映射启用可选维度。
+      # method: http.request.method.keyword
+      # waf: waf.action.keyword
+      # wafrule: waf.category.keyword
+      # tls: tls.version.keyword
+      # upstream: nginx.upstream_status.keyword
   - name: nginx-staging
     kind: loki
     environment: staging
@@ -30,6 +37,7 @@ rules:
   ip: 1000
   uri: 2000
   errors: 100
+  nginx_burst: 20
   backend_errors: 20
   dependency_errors: 5
   latency: 1

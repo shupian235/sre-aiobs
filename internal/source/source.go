@@ -19,7 +19,7 @@ import (
 )
 
 // Backend dimensions use structured metadata, never message or stack trace fields.
-var dimensions = []string{"ip", "uri", "host", "ua", "status", "ip_uri", "ip_host", "ip_ua", "ip_status", "level", "exception", "dependency", "vulnerability"}
+var dimensions = []string{"ip", "uri", "host", "ua", "status", "ip_uri", "ip_host", "ip_ua", "ip_status", "uri_status", "ip_method", "method", "waf", "wafrule", "tls", "upstream", "level", "exception", "dependency", "vulnerability"}
 
 type Client struct {
 	Config config.Source

@@ -9,7 +9,11 @@ const labels = new Map(Object.entries({
   unexpected_user_agent:"异常 User-Agent",sensitive_uri:"敏感 URI",sql_injection:"SQL 注入特征",
   xss:"XSS 特征",path_traversal:"路径遍历特征",http_status:"HTTP 状态异常",latency_p95:"P95 延迟异常",correlated:"多维事件关联",
   backend_critical_log:"后端严重日志",backend_error_spike:"后端错误激增",
-  backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",scanner_vulnerability:"漏洞扫描发现"
+  backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",
+  nginx_sensitive_artifact:"敏感文件探测",nginx_unexpected_method:"异常请求方法",
+  nginx_waf_block:"WAF 拦截",nginx_waf_category:"WAF 安全分类",nginx_legacy_tls:"旧版 TLS",
+  nginx_upstream_error:"上游错误激增",nginx_route_error:"接口限流或上游错误",
+  nginx_auth_failure_burst:"认证失败激增",nginx_not_found_burst:"404 激增",nginx_rate_limit_burst:"限流激增",scanner_vulnerability:"漏洞扫描发现"
 }));
 const statuses = new Map([["done","已完成"],["failed","失败"],["running","运行中"]]);
 let trend = [];
@@ -42,7 +46,7 @@ function rows(body, records, columns, render) {
   }
 }
 
-function showDetail(record) {
+function showDetail(record,metricsLinks) {
   const {event,analysis} = record;
   byId("detail-title").textContent = labels.get(event.Rule) || event.Rule;
   const fields = event.Rule==="scanner_vulnerability" ? [
@@ -57,6 +61,13 @@ function showDetail(record) {
   for (const [name,value] of fields) list.append(element("dt",name),element("dd",value || "—"));
   const content = byId("detail-content");
   content.replaceChildren(list);
+  if (metricsLinks && /^[0-9a-f]{32}$/.test(record.id)) {
+    const link=element("a","查看 VictoriaMetrics 窗口指标","detail-link");
+    link.href="/api/metrics-link/"+encodeURIComponent(record.id);
+    link.target="_blank";
+    link.rel="noopener noreferrer";
+    content.append(link);
+  }
   content.append(element("h2","AI 分析"));
   if (analysis) {
     content.append(element("p",analysis.summary));
@@ -153,7 +164,7 @@ function render(data) {
 
   rows(byId("event-body"),data.events,6,item => {
     const event=item.event;
-    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),item.source,date.format(new Date(item.at)),detailButton(item)];
+    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)];
   });
   rows(byId("task-body"),data.tasks,5,item => [
     item.source,element("span",statuses.get(item.status)||item.status,"pill "+(statuses.has(item.status)?item.status:"")),
@@ -165,10 +176,10 @@ function riskRating(score) {
   return element("span",String(score),"pill "+(score>=80?"high":score>=65?"medium":""));
 }
 
-function detailButton(item) {
+function detailButton(item,metricsLinks) {
   const button=element("button","查看","detail-link");
   button.type="button";
-  button.addEventListener("click",()=>showDetail(item));
+  button.addEventListener("click",()=>showDetail(item,metricsLinks));
   return button;
 }
 
@@ -178,7 +189,7 @@ function renderVulnerabilities(data) {
     ? `共 ${total} 条发现，显示最近 ${data.events.length} 条。` : `共 ${total} 条发现。`;
   rows(byId("vulnerability-body"),data.events,5,item=>[
     element("span",item.event.Target,"mono"),number.format(item.event.Count),
-    item.source,date.format(new Date(item.at)),detailButton(item)
+    item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
   ]);
 }
 
@@ -197,14 +208,14 @@ async function refreshVulnerabilities(filters,controller) {
 
 function renderNginxRoutes(data) {
   byId("nginx-status").textContent=`共 ${number.format(data.total)} 条事件，显示最近 ${data.events.length} 条。`;
-  rows(byId("nginx-body"),data.events,7,item=>[
+  rows(byId("nginx-body"),data.events,8,item=>[
     element("span",item.event.Target||"—","mono"),labels.get(item.event.Rule)||item.event.Rule,
-    riskRating(item.score),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item)
+    riskRating(item.score),element("span",item.event.IP||"—","mono"),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
   ]);
 }
 
 async function refreshNginxRoutes(filters,controller) {
-  byId("nginx-status").textContent="正在加载接口事件…";
+  byId("nginx-status").textContent="正在加载巡检事件…";
   byId("nginx-body").replaceChildren();
   try {
     const response=await fetch("/api/nginx-risk-routes?"+filters,{signal:controller.signal});
@@ -212,7 +223,7 @@ async function refreshNginxRoutes(filters,controller) {
     const data=await response.json();
     if (activeRequest===controller) renderNginxRoutes(data);
   } catch (error) {
-    if (error.name!=="AbortError" && activeRequest===controller) byId("nginx-status").textContent="接口事件暂不可用，请刷新重试。";
+    if (error.name!=="AbortError" && activeRequest===controller) byId("nginx-status").textContent="巡检事件暂不可用，请刷新重试。";
   }
 }
 

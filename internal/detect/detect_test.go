@@ -80,3 +80,37 @@ func TestVulnerabilityFindingsUseValidatedIDs(t *testing.T) {
 		t.Fatalf("findings=%+v", events)
 	}
 }
+
+func TestNginxInspectionClassifiesSignalsAndKeepsRawTargetsOut(t *testing.T) {
+	snapshot := platform.Snapshot{Buckets: []platform.Bucket{
+		{Dimension: "ip_status", Value: "192.0.2.15\x00401", Count: 23},
+		{Dimension: "ip_status", Value: "192.0.2.16\x00404", Count: 22},
+		{Dimension: "ip_status", Value: "192.0.2.17\x00429", Count: 21},
+		{Dimension: "ip_status", Value: "192.0.2.18\x00403", Count: 19},
+		{Dimension: "uri_status", Value: "/orders?token=fixture-secret\x00502", Count: 20},
+		{Dimension: "uri", Value: "/archive/file.bak?token=fixture-secret", Count: 1},
+		{Dimension: "ip_method", Value: "192.0.2.19\x00UNEXPECTED", Count: 1},
+		{Dimension: "method", Value: "UNEXPECTED", Count: 1},
+		{Dimension: "waf", Value: "blocked", Count: 1},
+		{Dimension: "wafrule", Value: "protocol_violation", Count: 1},
+		{Dimension: "wafrule", Value: "untrusted fixture-secret", Count: 1},
+		{Dimension: "tls", Value: "TLSv1.1", Count: 1},
+		{Dimension: "tls", Value: "TLSv1.3", Count: 1},
+		{Dimension: "upstream", Value: "502, 200", Count: 25},
+	}}
+	rules := config.Rules{NginxBurst: 20, Errors: 100, URI: 100, Latency: 1, BaselineMultiplier: 2}
+	wants := map[string]string{"nginx_auth_failure_burst": "", "nginx_not_found_burst": "", "nginx_rate_limit_burst": "",
+		"nginx_route_error": "/orders", "nginx_sensitive_artifact": BucketKey("/archive/file.bak")[:16], "nginx_unexpected_method": "",
+		"nginx_waf_block": "", "nginx_waf_category": "protocol_violation", "nginx_legacy_tls": "", "nginx_upstream_error": ""}
+	events := Evaluate(snapshot, nil, rules, nil, []config.Route{{Label: "/orders", Pattern: "^/orders$"}}, nil)
+	for _, event := range events {
+		target, ok := wants[event.Rule]
+		if !ok || event.Target != target {
+			t.Fatalf("unexpected event %+v", event)
+		}
+		delete(wants, event.Rule)
+	}
+	if len(wants) != 0 {
+		t.Fatalf("missing checks: %v", wants)
+	}
+}

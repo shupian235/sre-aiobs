@@ -38,7 +38,7 @@ dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(-
     <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
     <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
     <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
-    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 风险接口</a>
+    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 安全巡检</a>
     <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
     <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
     <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
@@ -70,8 +70,8 @@ dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(-
       <div class="table-wrap"><table><thead><tr><th>数据源</th><th>类型</th><th>环境</th><th>探测能力</th><th>连通性</th></tr></thead><tbody id="source-body"></tbody></table></div>
     </section>
     <section id="nginx-routes" class="panel listing">
-      <div class="panel-head"><div><h2>Nginx 风险接口</h2><p id="nginx-status" role="status">正在加载接口事件…</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>接口</th><th>检测规则</th><th>风险评分</th><th>命中请求数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
+      <div class="panel-head"><div><h2>Nginx 安全巡检</h2><p id="nginx-status" role="status">正在加载巡检事件…</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>接口或类别</th><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>命中数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
     </section>
     <section id="vulnerability-findings" class="panel listing">
       <div class="panel-head"><div><h2>漏洞检测</h2><p id="vulnerability-status" role="status">正在加载漏洞发现…</p></div></div>
@@ -118,7 +118,7 @@ function offlineData(filters, now = Date.now()) {
   const end = Math.floor(now/stride)*stride;
   const trend = [], events = [], tasks = [], rules = new Map();
   const iso = at => new Date(at).toISOString();
-  const types = ["sensitive_uri","uri_frequency","xss","path_traversal"];
+  const types = ["sensitive_uri","uri_frequency","xss","path_traversal","nginx_auth_failure_burst","nginx_not_found_burst","nginx_rate_limit_burst","nginx_waf_category","nginx_unexpected_method","nginx_legacy_tls","nginx_upstream_error","nginx_route_error","nginx_sensitive_artifact","nginx_waf_block"];
   let requests=0, alerts=0, failed=0;
   for(let i=hours*60/minutes-1;i>=0;i--){
     const at=iso(end-i*stride);
@@ -139,14 +139,14 @@ function offlineData(filters, now = Date.now()) {
         continue;
       }
       if((i+offset)%3===0){
-        const index=(i+offset*3)%4, backend=source==="orders-backend-demo";
-        const rating=(backend?[85,80,95,85]:[65,45,100,60])[index];
+        const backend=source==="orders-backend-demo", index=(i+offset*3)%(backend?4:types.length);
+        const rating=(backend?[85,80,95,85]:[65,45,85,85,80,75,80,85,85,65,75,75,85,85])[index];
         const rule=(backend?["backend_exception","backend_error_spike","backend_critical_log","backend_dependency_failure"]:types)[index];
         if(rating>=80) alerts++;
         if(rating<score) continue;
         rules.set(rule,(rules.get(rule)||0)+1);
         events.push({id,at,source,score:rating,correlation_id:"demo-correlation-"+i,
-          event:{Rule:rule,Target:backend?"": ["/admin","/api/orders/:id","/search","/download"][index],IP:backend?"":"192.0.2."+(20+(i+offset)%60),Country:backend?"":"MY",Count:3+i%14,Signals:!backend&&index===2?["sensitive_uri","unexpected_host"]:[]},
+          event:{Rule:rule,Target:backend?"": (["/admin","/api/orders/:id","/search","/download","","","","protocol_violation","","","","/checkout","a53e10d2bcf48a71",""][index]),IP:backend?"":"192.0.2."+(20+(i+offset)%60),Country:backend?"":"MY",Count:3+i%14,Signals:!backend&&index===2?["sensitive_uri","unexpected_host"]:[]},
           analysis:!backend&&index===2?{summary:"同一示例客户端命中敏感 URI 和异常 Host 规则。",actions:["复核相关聚合窗口。"]}:null});
       }
     }
@@ -175,7 +175,11 @@ const labels = new Map(Object.entries({
   unexpected_user_agent:"异常 User-Agent",sensitive_uri:"敏感 URI",sql_injection:"SQL 注入特征",
   xss:"XSS 特征",path_traversal:"路径遍历特征",http_status:"HTTP 状态异常",latency_p95:"P95 延迟异常",correlated:"多维事件关联",
   backend_critical_log:"后端严重日志",backend_error_spike:"后端错误激增",
-  backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",scanner_vulnerability:"漏洞扫描发现"
+  backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",
+  nginx_sensitive_artifact:"敏感文件探测",nginx_unexpected_method:"异常请求方法",
+  nginx_waf_block:"WAF 拦截",nginx_waf_category:"WAF 安全分类",nginx_legacy_tls:"旧版 TLS",
+  nginx_upstream_error:"上游错误激增",nginx_route_error:"接口限流或上游错误",
+  nginx_auth_failure_burst:"认证失败激增",nginx_not_found_burst:"404 激增",nginx_rate_limit_burst:"限流激增",scanner_vulnerability:"漏洞扫描发现"
 }));
 const statuses = new Map([["done","已完成"],["failed","失败"],["running","运行中"]]);
 let trend = [];
@@ -352,9 +356,9 @@ function refreshVulnerabilities(filters) { renderVulnerabilities(offlineData(fil
 
 function renderNginxRoutes(data) {
   byId("nginx-status").textContent=`共 ${number.format(data.total)} 条事件，显示最近 ${data.events.length} 条。`;
-  rows(byId("nginx-body"),data.events,7,item=>[
+  rows(byId("nginx-body"),data.events,8,item=>[
     element("span",item.event.Target||"—","mono"),labels.get(item.event.Rule)||item.event.Rule,
-    riskRating(item.score),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item)
+    riskRating(item.score),element("span",item.event.IP||"—","mono"),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item)
   ]);
 }
 
@@ -428,7 +432,7 @@ window.addEventListener("hashchange",()=>{
 });
 const demoAlerts = {minimum_score:80,cooldown_minutes:15,slack:true,telegram:true,email:true};
 refresh();
-requestAnimationFrame(()=>{if(!location.hash) byId("vulnerability-findings").scrollIntoView();});
+requestAnimationFrame(()=>{if(!location.hash) byId("nginx-routes").scrollIntoView();});
 
 
 for (const key of ["slack","telegram","email"]) byId("alert-"+key).checked=demoAlerts[key];
