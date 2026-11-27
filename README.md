@@ -120,10 +120,6 @@ Compose 测试用独立的随机项目名，验证真实 Elasticsearch 日志聚
 - `POST /api/sources/{name}/check` 使用已配置的数据源查询最近一分钟聚合量。请求需带 `X-SRE-AIObs-Check: 1`，结果区分成功、超时、权限不足等状态。看板「数据源」里的「检查」按钮直接调用此接口。
 - `GET /api/nginx-risk-routes` 查询危险 URI 命中明细，支持与 `/api/backend-logs` 相同的 `source`、`hours` 和 `score` 筛选。低于 65 分的高频 URI 在「所有风险」下查看。
 
-在看板进入「路由配置」，选择 Nginx 数据源，填写路由名和 Go 正则，调整顺序后保存。比如将 `^/api/orders/[0-9]+$` 显示为 `/api/orders/:id`。修改使用 `ALERT_SETTINGS_PASSWORD`，可随时恢复 YAML 默认规则。
-
-路由规则按配置顺序取首个匹配项。无匹配时展示路径哈希，接口响应不包含原始 URI、查询串和路径参数。旧事件会沿用当时已保存的目标标识。
-
 ### 漏洞检测邮件
 
 看板「漏洞检测」及 `GET /api/vulnerabilities` 汇总可信扫描源的 CVE 发现。配置扫描日志字段与 AWS SES 收件人后，漏洞发现随小时报告和日报发送。[接入说明](docs/deployment.md#漏洞发现与定期邮件)
