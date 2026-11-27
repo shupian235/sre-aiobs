@@ -4,21 +4,56 @@
 
 [中文更新与配置说明](docs/update-and-configuration.md) · [快速部署](docs/quickstart.md) · [功能预览](docs/preview/README.md) · [离线演示](docs/preview/index.html)
 
-## 功能示意图
+## 功能预览
 
-以下图片用示意或模拟数据展示功能。
+图片为界面示意或模拟数据。操作步骤见 [Web 配置手册](docs/web-operations.md)。
 
-![ELK 日志采集和巡检架构](docs/preview/images/architecture.png)
+### Web 登录
 
-![Kibana WAF 拦截趋势与异常来源](docs/preview/images/kibana-security.png)
+![Web 登录与 Google Authenticator 六位动态码](docs/preview/images/totp-login.png)
 
-![Kibana Nginx 流量看板](docs/preview/images/kibana-access.png)
+<details>
+<summary>展开运维看板、Nginx 安全巡检与告警设置</summary>
 
-![Kibana Nginx 地理分布看板](docs/preview/images/kibana-geo.png)
+![Elasticsearch 数据源连接检查](docs/preview/images/source-management.png)
+
+![Nginx 安全巡检规则](docs/preview/images/nginx-inspection.png)
+
+![Nginx 风险接口与客户端 GeoIP](docs/preview/images/nginx-risk.png)
+
+![Web 告警设置](docs/preview/images/web-alert-settings.png)
+
+![漏洞发现与通知](docs/preview/images/vulnerability-alerts.png)
+
+![从安全事件追踪 Run ID](docs/preview/images/incident-investigation.png)
+
+![历史巡检报告与下载](docs/preview/images/inspection-report.png)
+
+</details>
+
+<details>
+<summary>展开 Kibana 流量、延迟、GeoIP 与 WAF 看板</summary>
+
+![Kibana 预置看板和数据视图](docs/preview/images/kibana-dashboards.png)
+
+![Kibana Nginx QPS 与状态码](docs/preview/images/kibana-access.png)
 
 ![Kibana 延迟分位数](docs/preview/images/kibana-latency.png)
 
-在 [完整图集](docs/preview/README.md) 还可查看双重验证登录、巡检报告、批量采集和部署示意。
+![Kibana Nginx 地理分布](docs/preview/images/kibana-geo.png)
+
+![Kibana WAF 拦截趋势与异常来源](docs/preview/images/kibana-security.png)
+
+</details>
+
+<details>
+<summary>展开 ELK 架构、单机部署与批量采集</summary>
+
+![ELK 日志采集和巡检架构](docs/preview/images/architecture.png)
+
+![单机部署和 Filebeat 批量采集](docs/preview/images/deployment.png)
+
+</details>
 
 ## 部署
 
@@ -39,8 +74,6 @@ Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板
 ## Web 管理
 
 [Web 登录、Nginx 安全巡检和告警配置](docs/web-operations.md)包含实际入口、配置项和操作步骤。
-
-![Web 告警设置示意](docs/preview/images/web-alert-settings.png)
 
 ## 巡检与报告
 
