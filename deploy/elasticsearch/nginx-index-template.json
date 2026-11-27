@@ -93,6 +93,18 @@
         "collector_hostname": {
           "type": "keyword",
           "ignore_above": 128
+        },
+        "waf_action": {
+          "type": "keyword",
+          "ignore_above": 128
+        },
+        "waf_category": {
+          "type": "keyword",
+          "ignore_above": 128
+        },
+        "waf_rule_id": {
+          "type": "keyword",
+          "ignore_above": 128
         }
       }
     }

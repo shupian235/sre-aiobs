@@ -57,7 +57,8 @@ def qps_spec():
 
 
 class Dashboard:
-    def __init__(self, slug, title, query=""):
+    def __init__(self, slug, title, query="", data_view=DATA_VIEW):
+        self.data_view = data_view
         self.id = f"sre-aiobs-nginx-{slug}"
         self.title = title
         self.query = query
@@ -93,7 +94,7 @@ class Dashboard:
         if kind != "vega":
             reference = "kibanaSavedObjectMeta.searchSourceJSON.index"
             source["indexRefName"] = reference
-            references.append({"name": reference, "type": "index-pattern", "id": DATA_VIEW})
+            references.append({"name": reference, "type": "index-pattern", "id": self.data_view})
         vis_state = {"title": title, "type": kind, "params": params, "aggs": [
             dict(agg, id=str(i), enabled=True) for i, agg in enumerate(aggs, 1)
         ]}
@@ -175,6 +176,17 @@ def main():
     geo.panel("ip-country", "高频 IP × 来源国家", "table", (*status_counts, terms("client_ip", 20), terms(country, 5)), width=48)
     geo.panel("region-status", "状态码 × 来源地区", "table", (*status_counts, terms(region, 20)), width=48)
     geo.write()
+
+    security = Dashboard("security", "Nginx 安全巡检日志看板", data_view="sre-aiobs-nginx-security")
+    security.panel("total", "安全日志总数", "metric", (count,))
+    security.panel("blocks", "WAF 拦截日志数", "metric", (count,), 'waf_action:("block" OR "blocked" OR "deny" OR "denied" OR "drop" OR "dropped" OR "reject" OR "rejected")')
+    security.panel("trend", "安全日志趋势", "line", (count, histogram()), width=48)
+    security.panel("actions", "WAF 动作分布", "table", (count, terms("waf_action", 10)))
+    security.panel("categories", "WAF 安全分类", "table", (count, terms("waf_category", 20)))
+    security.panel("ips", "客户端 IP 排行", "table", (count, terms("client_ip", 20)))
+    security.panel("regions", "客户端地区排行", "table", (count, terms("client_geo.region_iso_code", 20)))
+    security.write()
+
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@
 
 ## Kibana 看板
 
-完整 ELK 首次启动后，在 **Analytics → Dashboard** 打开内置的 Nginx Access 和地理分布看板。Discover 中可按 `collector_hostname` 筛选远程采集机。
+完整 ELK 首次启动后，在 **Analytics → Dashboard** 打开内置的 Nginx Access、地理分布和安全巡检看板。Discover 中可按 `collector_hostname` 筛选远程采集机。
 
 ![Kibana 看板和数据视图](images/kibana-dashboards.png)
 
@@ -23,8 +23,11 @@
 | Data View | 索引模式 | 记录类型 |
 | --- | --- | --- |
 | Nginx | `nginx-access-*` | Nginx 访问日志 |
+| Nginx Security | `nginx-security-*` | WAF 安全日志 |
 | Applications | `app-logs-*` | 应用日志 |
 | Vulnerabilities | `vulnerability-findings-*` | 扫描发现记录 |
+
+[完整索引和安全巡检配置](../elasticsearch-indexes.md)
 
 ## 自动巡检与运维
 

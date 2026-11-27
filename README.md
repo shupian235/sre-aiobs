@@ -32,7 +32,7 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 | 运维看板 | `http://127.0.0.1:8080` | `operator`，密码见 `.env` 的 `DASHBOARD_PASSWORD` |
 | Kibana | `http://127.0.0.1:5601` | 初始账号 `elastic`，密码见 `.env` 的 `ELASTIC_PASSWORD` |
 
-Kibana 在首次启动时导入 Nginx Access 和地理分布看板。已有 Elasticsearch 时，可通过 [部署手册](docs/deployment.md#日志源) 配置只读账号和索引。多机采集通过 [Ansible 与内网 HTTPS 网关](docs/deployment.md#elasticsearch-与-nginx-批量采集) 接入。已有配置升级请先检查 [迁移步骤](docs/update-and-configuration.md#部署升级)。
+Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板。已有 Elasticsearch 时，可通过 [部署手册](docs/deployment.md#日志源) 配置只读账号和索引。多机采集通过 [Ansible 与内网 HTTPS 网关](docs/deployment.md#elasticsearch-与-nginx-批量采集) 接入。已有配置升级请先检查 [迁移步骤](docs/update-and-configuration.md#部署升级)。
 
 ## 巡检与报告
 
@@ -41,7 +41,7 @@ Kibana 在首次启动时导入 Nginx Access 和地理分布看板。已有 Elas
 - **接口性能**在 Kibana 查看 QPS、P50／P90／P95／P99 和错误率。运维报告也展示有样本的窗口延迟。
 - **历史报告与通知**提供 HTML、JSON、Markdown 导出，以及 Telegram、Slack 和 AWS SES。双重验证和 OpenAI／Claude 可按需启用。
 
-[巡检 API 与迁移详情](docs/inspection-integration.md) · [安全审查](docs/security-review.md)
+[四类索引与安全巡检](docs/elasticsearch-indexes.md) · [巡检 API 与迁移详情](docs/inspection-integration.md) · [安全审查](docs/security-review.md)
 
 ## 验证
 

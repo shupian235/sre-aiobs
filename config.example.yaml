@@ -23,8 +23,8 @@ sources:
       # country: client_geo.country_iso_code
       # region: client_geo.region_iso_code
       # method: http.request.method.keyword
-      # waf: waf.action.keyword
-      # wafrule: waf.category.keyword
+      # waf: waf_action
+      # wafrule: waf_category
       # tls: tls.version.keyword
       # upstream: nginx.upstream_status.keyword
 
@@ -34,7 +34,22 @@ sources:
     url: https://elasticsearch.example.net:9200
     credential_env: ELASTICSEARCH_API_KEY
     index: app-logs-*
-    fields: {timestamp: "@timestamp", level: level, exception: exception_type, dependency: dependency_failure}
+    fields: {timestamp: "@timestamp", level: level, exception: exception_type, dependency: dependency_failure, businesscode: business_error_code}
+
+  # 启用后读取 WAF 采集链路写入的安全日志。
+  # - name: nginx-security-prod
+  #   kind: elasticsearch
+  #   environment: production
+  #   url: https://elasticsearch.example.net:9200
+  #   credential_env: ELASTICSEARCH_API_KEY
+  #   index: nginx-security-*
+  #   fields:
+  #     timestamp: "@timestamp"
+  #     ip: client_ip
+  #     country: client_geo.country_iso_code
+  #     region: client_geo.region_iso_code
+  #     waf: waf_action
+  #     wafrule: waf_category
 
 rules:
   backend_warnings: 0 # 大于 0 时启用 WARN 激增检测

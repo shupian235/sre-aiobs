@@ -16,10 +16,13 @@ request() {
 }
 
 request _security/role/sre_aiobs_reader <<'JSON'
-{"indices":[{"names":["nginx-access-*","app-logs-*","vulnerability-findings-*"],"privileges":["read","view_index_metadata"]}]}
+{"indices":[{"names":["nginx-access-*","nginx-security-*","app-logs-*","vulnerability-findings-*"],"privileges":["read","view_index_metadata"]}]}
 JSON
 request _security/role/sre_aiobs_ingest <<'JSON'
 {"cluster":["monitor"],"indices":[{"names":["nginx-access-*"],"privileges":["create_doc","create_index"]}]}
+JSON
+request _security/role/sre_aiobs_security_ingest <<'JSON'
+{"indices":[{"names":["nginx-security-*"],"privileges":["create_doc","create_index"]}]}
 JSON
 request _security/user/sre_aiobs_reader <<JSON
 {"password":"$ELASTICSEARCH_READER_PASSWORD","roles":["sre_aiobs_reader"]}
@@ -29,6 +32,7 @@ request _security/user/sre_aiobs_ingest <<JSON
 JSON
 request _ingest/pipeline/sre_aiobs_nginx_geoip </setup/nginx-geoip-pipeline.json
 request _index_template/sre_aiobs_nginx </setup/nginx-index-template.json
+request _index_template/sre_aiobs_security </setup/security-index-template.json
 request _index_template/sre_aiobs_application </setup/application-index-template.json
 request _index_template/sre_aiobs_vulnerability </setup/vulnerability-index-template.json
 

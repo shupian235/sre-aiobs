@@ -4,6 +4,8 @@
 
 ## 日志源
 
+[四类索引及安全巡检字段](elasticsearch-indexes.md)列出索引命名、字段类型、采集链路和权限。
+
 每条 `sources` 配置的 `name` 必须唯一，独立标识逻辑数据源。相同集群可配置多个来源，通过 `index` 隔离不同环境。一个 Elasticsearch 来源可指定索引别名、通配符或逗号分隔表达式。相同字段在表达式匹配的索引中应具备兼容映射。时间使用日期字段，字符串维度使用可聚合的 keyword 或 IP 字段，响应时延使用秒为单位的数值。可按业务拆分高基数数据源以限制查询资源。
 
 由 Elasticsearch 管理员在批准后创建 API key，角色仅授权指定索引的 `read`，例如：
@@ -190,6 +192,7 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl ./deploy/single-node
 | 索引模式 | 数据入口 | 探测与查询 |
 | --- | --- | --- |
 | `nginx-access-*` | 本机或批量 Filebeat，按日志 UTC 日期路由 | Nginx 风险接口、状态码、时延、请求量、客户端 IP 和 GeoIP |
+| `nginx-security-*` | WAF 或安全日志采集器，单独授权 | 拦截动作、规则分类和地理来源 |
 | `app-logs-*` | 现有应用日志采集链路，使用独立写入凭据 | 按日志级别、异常类别和下游故障巡检 |
 | `vulnerability-findings-*` | 已有扫描结果发布流程，使用独立写入凭据 | CVE 聚合、小时报告与日报 |
 
@@ -225,6 +228,6 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 
 本机采集链路为 **Nginx JSON 日志 → Filebeat → Logstash → Elasticsearch**。Logstash 使用持久化队列，默认容量 512 MB，且只拥有 Nginx 索引写入权限。Beats 端口 5044 仅在 Compose 网络内可达。已有的 Ansible 批量采集仍可通过 `--with-ingest-gateway` 启用的内网 HTTPS 网关写入 Elasticsearch。
 
-Kibana 默认绑定 `127.0.0.1:5601`。初次登录使用 `elastic` 和 `.env` 中的 `ELASTIC_PASSWORD`。日常使用请创建受限的个人账号。Kibana 服务内部使用独立的 `kibana_system` 密码，密钥保存在 `.env`，重启时复用。启动后可在 Discover 选择 Nginx、Applications 或 Vulnerabilities 三个预建 Data View。Nginx Data View 沿用两份附件中的 ID。启动时会自动导入 [Nginx Access 日志看板](../deploy/elk/dashboards/sre-aiobs-nginx-access.ndjson) 和 [Nginx 地理分布看板](../deploy/elk/dashboards/sre-aiobs-nginx-geo.ndjson)。登录后在 **Analytics → Dashboard** 打开。再次启动时保留已经安装的同 ID 看板。已有 Kibana 8.17 环境也可在 **Stack Management → Saved Objects → Import** 导入这两个 NDJSON，先确保 Nginx Data View ID 为 `bc589ecf-5117-40ca-b632-cb021652f611` 并指向 `nginx-access-*`。已安装的 Kibana 面板若需要更新，可显式导入仓库中的 NDJSON。
+Kibana 默认绑定 `127.0.0.1:5601`。初次登录使用 `elastic` 和 `.env` 中的 `ELASTIC_PASSWORD`。日常使用请创建受限的个人账号。Kibana 服务内部使用独立的 `kibana_system` 密码，密钥保存在 `.env`，重启时复用。启动后可在 Discover 选择 Nginx、Nginx Security、Applications 或 Vulnerabilities 四个预建 Data View。Nginx Data View 沿用附件中的 ID。启动时会自动导入 [Nginx Access 日志看板](../deploy/elk/dashboards/sre-aiobs-nginx-access.ndjson) 、[Nginx 地理分布看板](../deploy/elk/dashboards/sre-aiobs-nginx-geo.ndjson) 和 [Nginx 安全巡检日志看板](../deploy/elk/dashboards/sre-aiobs-nginx-security.ndjson)。登录后在 **Analytics → Dashboard** 打开。再次启动时保留已经安装的同 ID 看板。已有 Kibana 8.17 环境也可在 **Stack Management → Saved Objects → Import** 导入对应的 NDJSON，导入访问与地理看板前，确认 Nginx Data View ID 为 `bc589ecf-5117-40ca-b632-cb021652f611` 并指向 `nginx-access-*`。安全看板使用 `sre-aiobs-nginx-security` Data View，指向 `nginx-security-*`。已安装的 Kibana 面板若需要更新，可显式导入仓库中的 NDJSON。
 
 首次启动需拉取 Elastic 官方镜像。可用 `COMPOSE_WAIT_TIMEOUT=480` 延长服务就绪等待。若单机上已经有 `config.yaml`，脚本会保留它，按前文合并本地 Elasticsearch 数据源即可。

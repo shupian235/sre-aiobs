@@ -8,7 +8,8 @@
       "service": {"type": "keyword"},
       "level": {"type": "keyword"},
       "exception_type": {"type": "keyword"},
-      "dependency_failure": {"type": "keyword"}
+      "dependency_failure": {"type": "keyword"},
+      "business_error_code": {"type": "keyword", "ignore_above": 128}
     }}
   }
 }

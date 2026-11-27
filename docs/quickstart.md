@@ -48,7 +48,7 @@ ssh -N -L 8080:127.0.0.1:8080 \
   -L 5601:127.0.0.1:5601 user@server
 ```
 
-Kibana 启动时会安装两份 Nginx 看板，在 **Analytics → Dashboard** 打开「Nginx Access 日志看板」和「Nginx 地理分布看板」。看板已安装但暂无数据时，先在 Kibana **Discover → Nginx** 选择覆盖日志时间的范围，确认有记录。再到运维看板 **日志数据源 → 检查** 核对最近一分钟计数，在 Kibana 的 **Nginx Access 日志看板**看 QPS 与 P50／P90／P95／P99，在 **Nginx 地理分布看板**看国家、城市和 IP。地区指标需要可用的 GeoIP 数据与正确的客户端 IP。
+Kibana 启动时会安装三份 Nginx 看板，在 **Analytics → Dashboard** 打开「Nginx Access 日志看板」、「Nginx 地理分布看板」和「Nginx 安全巡检日志看板」。看板已安装但暂无数据时，先在 Kibana **Discover → Nginx** 选择覆盖日志时间的范围，确认有记录。再到运维看板 **日志数据源 → 检查** 核对最近一分钟计数，在 Kibana 的 **Nginx Access 日志看板**看 QPS 与 P50／P90／P95／P99，在 **Nginx 地理分布看板**看国家、城市和 IP。地区指标需要可用的 GeoIP 数据与正确的客户端 IP。
 
 如果页面打不开，在部署机运行 `curl -fsS http://127.0.0.1:8080/readyz` 并核对启动命令输出的容器状态。如果 Kibana 能打开但没有日志，先核对挂载目录、文件名及 JSON 格式，再检查 Discover 的时间范围。
 

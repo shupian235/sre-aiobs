@@ -22,6 +22,7 @@ ensure_view() {
 }
 
 ensure_view bc589ecf-5117-40ca-b632-cb021652f611 'nginx-access-*' Nginx
+ensure_view sre-aiobs-nginx-security 'nginx-security-*' 'Nginx Security'
 ensure_view sre-aiobs-application 'app-logs-*' Applications
 ensure_view sre-aiobs-vulnerabilities 'vulnerability-findings-*' Vulnerabilities
 
@@ -49,3 +50,4 @@ ensure_dashboard() {
 
 ensure_dashboard sre-aiobs-nginx-access
 ensure_dashboard sre-aiobs-nginx-geo
+ensure_dashboard sre-aiobs-nginx-security

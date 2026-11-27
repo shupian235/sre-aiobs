@@ -32,6 +32,7 @@ sources:
       level: level
       exception: exception_type
       dependency: dependency_failure
+      businesscode: business_error_code
   - name: vulnerabilities-local
     kind: elasticsearch
     environment: internal
@@ -42,3 +43,18 @@ sources:
     fields:
       timestamp: "@timestamp"
       vulnerability: vulnerability_id
+
+  - name: nginx-security-local
+    kind: elasticsearch
+    environment: internal
+    url: http://elasticsearch:9200
+    index: nginx-security-*
+    username: sre_aiobs_reader
+    credential_env: ELASTICSEARCH_READER_PASSWORD
+    fields:
+      timestamp: "@timestamp"
+      ip: client_ip
+      country: client_geo.country_iso_code
+      region: client_geo.region_iso_code
+      waf: waf_action
+      wafrule: waf_category
