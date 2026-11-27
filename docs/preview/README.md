@@ -14,6 +14,8 @@
 
 ![Kibana 看板和数据视图](images/kibana-dashboards.png)
 
+![Kibana WAF 拦截趋势与异常来源](images/kibana-security.png)
+
 ![QPS、状态码和接口流量](images/kibana-access.png)
 
 ![P50、P90、P95 和 P99](images/kibana-latency.png)

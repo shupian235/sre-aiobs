@@ -10,6 +10,8 @@
 
 ![ELK 日志采集和巡检架构](docs/preview/images/architecture.png)
 
+![Kibana WAF 拦截趋势与异常来源](docs/preview/images/kibana-security.png)
+
 ![Kibana Nginx 流量看板](docs/preview/images/kibana-access.png)
 
 ![Kibana Nginx 地理分布看板](docs/preview/images/kibana-geo.png)
