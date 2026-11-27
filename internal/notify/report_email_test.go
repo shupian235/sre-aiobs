@@ -15,6 +15,7 @@ import (
 )
 
 func TestInspectionReportsUseSESHTML(t *testing.T) {
+	checked := int64(3)
 	for _, item := range []struct {
 		name, title, content string
 		period               time.Duration
@@ -25,6 +26,11 @@ func TestInspectionReportsUseSESHTML(t *testing.T) {
 		}},
 		{"vulnerability", "漏洞巡检日报", "CVE-2026-0001", 24 * time.Hour, platform.Report{
 			VulnerabilityScan: true, Events: []platform.Event{{Rule: platform.VulnerabilityRule, Target: "CVE-2026-0001", Count: 3}},
+		}},
+		{"aws", "AWS 云端巡检小时报告", "检查 3 · 正常 2 · 告警 1 · 采样不足 0", time.Hour, platform.Report{
+			AWSRegion: "ap-southeast-1",
+			Snapshot:  platform.Snapshot{CloudAlarmCount: &checked},
+			Events:    []platform.Event{{Rule: platform.CloudAlarmRule, Score: 90, Target: "cpu"}},
 		}},
 		{"empty-security", "Nginx 安全巡检小时报告", "本窗口没有命中安全规则", time.Hour, platform.Report{NginxSecurity: true}},
 	} {

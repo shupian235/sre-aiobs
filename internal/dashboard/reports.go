@@ -28,9 +28,9 @@ var reportPage = template.Must(template.New("report").Parse(`<!doctype html>
 <dl><dt>Run ID</dt><dd>{{.ID}}</dd><dt>Correlation ID</dt><dd>{{.CorrelationID}}</dd>
 <dt>来源与任务</dt><dd>{{.Source}} · {{.Kind}}</dd><dt>状态与尝试次数</dt><dd>{{.Status}} · {{.Attempts}}</dd>
 <dt>窗口</dt><dd>{{.Start}} 至 {{.End}}</dd><dt>最近更新时间</dt><dd>{{.Updated}}</dd>
-<dt>原始日志量</dt><dd>{{if .Total}}{{.Total}}{{else}}暂无采集结果{{end}}</dd></dl>
-<h2>延迟分位数（秒）</h2><ul>{{range $k,$v := .Latency}}<li>P{{$k}} · {{$v}}</li>{{else}}<li>当前窗口没有有效延迟值</li>{{end}}</ul>
-<h2>事件统计</h2><ul>{{range $k,$v := .ByRule}}<li>{{$k}} · {{$v}}</li>{{else}}<li>暂无事件记录</li>{{end}}</ul>
+{{with .Cloud}}<dt>CloudWatch 告警</dt><dd>检查 {{.Checked}} · 正常 {{.OK}} · 告警 {{.Alarm}} · 采样不足 {{.InsufficientData}}</dd>{{else}}<dt>原始日志量</dt><dd>{{if .Total}}{{.Total}}{{else}}暂无采集结果{{end}}</dd>{{end}}</dl>
+{{if not .Cloud}}<h2>延迟分位数（秒）</h2><ul>{{range $k,$v := .Latency}}<li>P{{$k}} · {{$v}}</li>{{else}}<li>当前窗口没有有效延迟值</li>{{end}}</ul>{{end}}
+<h2>事件统计</h2><p>共 {{.EventCount}} 项 · 高风险 {{.HighRiskCount}} 项</p><ul>{{range $k,$v := .ByRule}}<li>{{$k}} · {{$v}}</li>{{else}}<li>暂无事件记录</li>{{end}}</ul>
 <h2>投递状态</h2><ul>{{range $k,$v := .Delivery}}<li>{{$k}} · {{$v}}</li>{{else}}<li>暂无投递记录</li>{{end}}</ul>
 <h2>AI 分析</h2>{{with .Analysis}}<p>{{.Severity}} · {{.Summary}}</p><ul>{{range .Actions}}<li>{{.}}</li>{{end}}</ul>{{else}}<p>暂无分析结果。</p>{{end}}</main></html>`))
 
@@ -67,11 +67,14 @@ func mountReports(mux *http.ServeMux, backend reportStore, protect func(http.Han
 			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 			w.Header().Set("Content-Disposition", `attachment; filename="report-`+id+`.md"`)
 			_, _ = fmt.Fprintf(w, "# 巡检报告\n\n- Run ID: %s\n- 数据源: %s\n- 状态: %s\n- 窗口: %s 至 %s\n", id, report.Source, report.Status, report.Start.UTC().Format(time.RFC3339), report.End.UTC().Format(time.RFC3339))
-			if report.Total == nil {
+			if cloud := report.Cloud; cloud != nil {
+				_, _ = fmt.Fprintf(w, "- CloudWatch: 检查 %d，正常 %d，告警 %d，采样不足 %d\n", cloud.Checked, cloud.OK, cloud.Alarm, cloud.InsufficientData)
+			} else if report.Total == nil {
 				_, _ = fmt.Fprintln(w, "- 日志量: 暂无采集结果")
 			} else {
 				_, _ = fmt.Fprintf(w, "- 日志量: %d\n", *report.Total)
 			}
+			_, _ = fmt.Fprintf(w, "- 事件: %d（高风险 %d）\n", report.EventCount, report.HighRiskCount)
 			// Indenting the serialized details keeps stored text literal in Markdown renderers.
 			payload, _ := json.MarshalIndent(report, "", "  ")
 			_, _ = fmt.Fprintf(w, "\n## 详细数据\n\n    %s\n", strings.ReplaceAll(string(payload), "\n", "\n    "))

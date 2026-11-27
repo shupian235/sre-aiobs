@@ -1,5 +1,7 @@
 # 配置与部署
 
+从安装中间件到验收的完整步骤见 [AIOps 平台完整搭建流程](full-setup.md)。
+
 首次部署可先看 [单机快速部署](quickstart.md)，看板和链路见 [功能预览](preview/README.md)。
 
 ## 日志源

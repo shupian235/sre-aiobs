@@ -5,6 +5,7 @@ const number = new Intl.NumberFormat("zh-CN");
 const date = new Intl.DateTimeFormat("zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
 const clock = new Intl.DateTimeFormat("zh-CN", {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false});
 const labels = new Map(Object.entries({
+  aws_cloudwatch_alarm:"AWS CloudWatch 告警",aws_cloudwatch_insufficient_data:"AWS CloudWatch 采样不足",
   ip_frequency:"IP 请求频率",uri_frequency:"URI 请求频率", unexpected_host:"异常 Host",
   unexpected_user_agent:"异常 User-Agent",sensitive_uri:"敏感 URI",sql_injection:"SQL 注入特征",
   xss:"XSS 特征",path_traversal:"路径遍历特征",http_status:"HTTP 状态异常",latency_p95:"P95 延迟异常",correlated:"多维事件关联",
@@ -249,7 +250,7 @@ async function checkSource(name,button,status) {
     if (!response.ok) throw new Error(String(response.status));
     const result=await response.json();
     status.textContent=result.status==="ok"
-      ? `可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`
+      ? (result.count===undefined?`AWS 连接正常 · ${result.duration_ms} ms`:`可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`)
       : (codes[result.code]||"查询失败");
   } catch(error) {
     status.textContent=error.message==="429"?"检查繁忙，请稍后重试。":"无法完成检查。";
@@ -270,7 +271,7 @@ function renderSources(sources) {
     check.addEventListener("click",()=>checkSource(source.name,check,status));
     cell.append(check,status);
     const capabilities=[source.backend?"后端日志":"",source.vulnerabilities?"漏洞扫描":""].filter(Boolean);
-    return [source.name,"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
+    return [source.name,source.kind==="aws"?"AWS CloudWatch":"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
   });
 }
 

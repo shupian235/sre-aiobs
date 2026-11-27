@@ -51,6 +51,15 @@ sources:
   #     waf: waf_action
   #     wafrule: waf_category
 
+  # 可选 AWS 巡检，凭据由 AWS SDK 从部署环境或 IAM Role 读取。
+  # - name: aws-prod-singapore
+  #   kind: aws
+  #   environment: production
+  #   region: ap-southeast-1
+  #   aws_account_id: "123456789012"
+  #   alarm_prefix: "prod-"
+  #   check_timeout: 4s
+
 rules:
   backend_warnings: 0 # 大于 0 时启用 WARN 激增检测
   business_errors: 0 # 大于 0 时启用，且需在来源中映射 fields.businesscode

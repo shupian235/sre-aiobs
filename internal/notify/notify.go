@@ -53,6 +53,7 @@ type reportView struct {
 	SecurityEvents              []platform.Event
 	SecurityTotal, SecurityHigh int
 	Title                       string
+	Cloud                       *platform.CloudSummary
 }
 
 //go:embed report-email.html
@@ -83,7 +84,11 @@ func (s Service) Email(ctx context.Context, destination platform.EmailDestinatio
 		securityRules[rule] = true
 	}
 	view.Events = nil
+	cloudRules := map[string]int64{}
 	for _, e := range r.Events {
+		if r.Snapshot.CloudAlarmCount != nil {
+			cloudRules[e.Rule]++
+		}
 		switch {
 		case e.Rule == platform.VulnerabilityRule:
 			view.VulnerabilityTotal++
@@ -113,6 +118,7 @@ func (s Service) Email(ctx context.Context, destination platform.EmailDestinatio
 			unique[e.IP] = true
 		}
 	}
+	view.Cloud = platform.SummarizeCloud(r.Snapshot.CloudAlarmCount, cloudRules)
 	view.NginxSecurity = view.NginxSecurity || view.SecurityTotal > 0
 	view.VulnerabilityScan = view.VulnerabilityScan || view.VulnerabilityTotal > 0
 	period := "小时报告"
@@ -122,6 +128,8 @@ func (s Service) Email(ctx context.Context, destination platform.EmailDestinatio
 	switch {
 	case view.NginxSecurity && view.VulnerabilityScan:
 		view.Title = "安全与漏洞巡检" + period
+	case r.AWSRegion != "":
+		view.Title = "AWS 云端巡检" + period
 	case view.VulnerabilityScan:
 		view.Title = "漏洞巡检" + period
 	case view.NginxSecurity:

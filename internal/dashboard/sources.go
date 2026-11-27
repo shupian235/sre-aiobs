@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"time"
 
+	"sre-aiobs/internal/awsinspect"
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/source"
 )
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
+	CheckAWS            func(context.Context, config.Source) error
 	TelegramDestination func() bool
 	Login               *Login
 
@@ -72,7 +74,15 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 		var count int64
 		var err error
 		for attempt := 0; ; attempt++ {
-			count, err = client.Check(ctx, started)
+			if selected.Kind == "aws" {
+				if access.CheckAWS == nil {
+					err = errors.New("AWS inspector unavailable")
+				} else {
+					err = access.CheckAWS(ctx, *selected)
+				}
+			} else {
+				count, err = client.Check(ctx, started)
+			}
 			var status source.HTTPStatusError
 			if err == nil || ctx.Err() != nil || attempt >= selected.CheckRetries ||
 				(errors.As(err, &status) && status < 500 && status != 429) {
@@ -96,11 +106,15 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 			DurationMS int64     `json:"duration_ms"`
 			CheckedAt  time.Time `json:"checked_at"`
 		}{Status: "ok", DurationMS: time.Since(started).Milliseconds(), CheckedAt: started}
-		result.Count = &count
+		if selected.Kind != "aws" {
+			result.Count = &count
+		}
 		if err != nil {
 			result.Status, result.Code, result.Count = "failed", "query_failed", nil
 			var status source.HTTPStatusError
 			switch {
+			case errors.Is(err, awsinspect.ErrAuthorization):
+				result.Code = "authorization_denied"
 			case errors.Is(err, context.DeadlineExceeded):
 				result.Code = "timeout"
 			case errors.As(err, &status):

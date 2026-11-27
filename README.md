@@ -2,7 +2,7 @@
 
 基于 ELK 的 Nginx 安全巡检与告警平台。Filebeat 与 Logstash 采集日志，Go 服务通过 Elasticsearch 聚合查询分析风险，Kibana 展示请求量、延迟和地理分布。PostgreSQL 保存任务、报告和审计，Redis 协调登录会话、任务及告警去重。
 
-[中文更新与配置说明](docs/update-and-configuration.md) · [快速部署](docs/quickstart.md) · [功能预览](docs/preview/README.md) · [离线演示](docs/preview/index.html)
+[中文更新与配置说明](docs/update-and-configuration.md) · [从零搭建 AIOps 与全部中间件](docs/full-setup.md) · [快速部署](docs/quickstart.md) · [功能预览](docs/preview/README.md) · [离线演示](docs/preview/index.html)
 
 ## 功能预览
 
@@ -78,6 +78,8 @@ Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板
 [Web 登录、Nginx 安全巡检和告警配置](docs/web-operations.md)包含实际入口、配置项和操作步骤。
 
 ## 巡检与报告
+
+[AWS 云端巡检配置](docs/aws-inspection.md)介绍如何通过 Access Key 或 IAM Role 接入 CloudWatch，只读检查异常告警。
 
 - **Nginx 安全巡检**支持 IP、URI、Host、User-Agent、状态码、GeoIP 和历史基线。事件详情可打开对应 Run ID 的报告。
 - **应用日志与漏洞发现**按 Elasticsearch 索引配置。运行异常按级别、故障分类和业务错误码聚合，可信扫描器的 CVE 可进入定期报告。

@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <body style="margin:24px;font:15px system-ui,sans-serif;color:#182b45">
 <h1>{{.Title}}</h1>
-<p>来源 {{.Source}} · 索引 {{.Index}} · 环境 {{.Environment}}</p>
+<p>来源 {{.Source}} · {{if .AWSRegion}}AWS 区域 {{.AWSRegion}}{{else}}索引 {{.Index}}{{end}} · 环境 {{.Environment}}</p>
 <p>巡检窗口 {{.Window.Start}} 至 {{.Window.End}}</p>
 {{if .RunID}}<p>Run ID <code>{{.RunID}}</code></p>{{end}}
-<p>原始日志 {{.Snapshot.Total}} 条 · 敏感 URI 事件请求量 {{.Sensitive}}</p>
+{{with .Cloud}}<p>CloudWatch 指标告警 · 检查 {{.Checked}} · 正常 {{.OK}} · 告警 {{.Alarm}} · 采样不足 {{.InsufficientData}}</p>{{else}}<p>原始日志 {{.Snapshot.Total}} 条 · 敏感 URI 事件请求量 {{.Sensitive}}</p>{{end}}
 {{if .NginxSecurity}}
 <h2>Nginx 安全巡检</h2>
 <p>共 {{.SecurityTotal}} 个规则事件，其中 {{.SecurityHigh}} 个高风险事件。最多展示 100 项。</p>

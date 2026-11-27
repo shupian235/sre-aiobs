@@ -22,6 +22,7 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/redis/go-redis/v9"
 	"sre-aiobs/internal/ai"
+	"sre-aiobs/internal/awsinspect"
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/dashboard"
 	"sre-aiobs/internal/notify"
@@ -95,7 +96,8 @@ func run() error {
 	if err != nil {
 		return errors.New("failed to initialize AWS configuration")
 	}
-	r := &worker.Runner{Store: st, HTTP: client, Notifier: notify.Service{HTTP: client, Store: st, SES: sesv2.NewFromConfig(aws)}}
+	inspector := awsinspect.Inspector{Config: aws}
+	r := &worker.Runner{AWS: inspector, Store: st, HTTP: client, Notifier: notify.Service{HTTP: client, Store: st, SES: sesv2.NewFromConfig(aws)}}
 	var aiClient *ai.Client
 	updateAI := func(c config.Config) {
 		if c.AI.Provider == "" {
@@ -162,6 +164,7 @@ func run() error {
 	initial := c
 	activeConfig.Store(&initial)
 	access := dashboard.SourceAccess{
+		CheckAWS:            inspector.Check,
 		Current:             func() []config.Source { return activeConfig.Load().Sources },
 		TelegramDestination: func() bool { return activeConfig.Load().TelegramChat != "" },
 		HTTP:                client,

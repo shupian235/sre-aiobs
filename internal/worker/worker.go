@@ -36,6 +36,9 @@ type Runner struct {
 	HTTP     *http.Client
 	Notifier Notifier
 	Analyzer platform.Analyzer
+	AWS      interface {
+		Inspect(context.Context, config.Source) (platform.Snapshot, []platform.Event, error)
+	}
 
 	Geo                        detect.Geo
 	Runs, Failures, AIFailures atomic.Uint64
@@ -77,32 +80,42 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 		return err
 	}
 	report := platform.Report{
-		RunID: j.ID, Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window,
+		RunID: j.ID, AWSRegion: s.Region, Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window,
 		VulnerabilityScan: s.Fields["vulnerability"] != "",
 		NginxSecurity:     s.Fields["uri"] != "" || s.Fields["waf"] != "" || s.Fields["wafrule"] != "",
 	}
 	if !saved {
-		snapshot, err = (source.Client{Config: s, HTTP: r.HTTP}).Aggregate(ctx, j.Window)
-		if err != nil {
-			return err
-		}
-		history, err := r.Store.History(ctx, j)
-		if err != nil {
-			return err
-		}
-		if s.Fields["uri"] != "" {
-			routes, overridden, err := r.Store.SourceRoutes(ctx, s.Name)
+		if s.Kind == "aws" {
+			if r.AWS == nil {
+				return errors.New("AWS inspector unavailable")
+			}
+			snapshot, events, err = r.AWS.Inspect(ctx, s)
 			if err != nil {
 				return err
 			}
-			if overridden {
-				if err := config.ValidateRoutes(routes); err != nil {
-					return fmt.Errorf("stored source route settings invalid: %w", err)
-				}
-				s.Routes = routes
+		} else {
+			snapshot, err = (source.Client{Config: s, HTTP: r.HTTP}).Aggregate(ctx, j.Window)
+			if err != nil {
+				return err
 			}
+			history, err := r.Store.History(ctx, j)
+			if err != nil {
+				return err
+			}
+			if s.Fields["uri"] != "" {
+				routes, overridden, err := r.Store.SourceRoutes(ctx, s.Name)
+				if err != nil {
+					return err
+				}
+				if overridden {
+					if err := config.ValidateRoutes(routes); err != nil {
+						return fmt.Errorf("stored source route settings invalid: %w", err)
+					}
+					s.Routes = routes
+				}
+			}
+			events = detect.Evaluate(snapshot, history, c.Rules, s.Hosts, s.Routes, r.Geo, s.AllowedMethods...)
 		}
-		events = detect.Evaluate(snapshot, history, c.Rules, s.Hosts, s.Routes, r.Geo, s.AllowedMethods...)
 		if r.Analyzer != nil && j.Kind != "five_minutes" {
 			if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) > 25*time.Second {
 				aiCtx, cancel := context.WithTimeout(ctx, min(15*time.Second, time.Until(deadline)-20*time.Second))
@@ -157,6 +170,9 @@ func (r *Runner) Cycle(ctx context.Context, c config.Config) {
 	var tasks sync.WaitGroup
 	for _, s := range c.Sources {
 		for _, schedule := range Schedules {
+			if s.Kind == "aws" && schedule.Kind == "minute" {
+				continue
+			}
 			tasks.Add(1)
 			go func() {
 				defer tasks.Done()

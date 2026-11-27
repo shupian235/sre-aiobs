@@ -1,5 +1,7 @@
 # 单机快速部署
 
+完整组件、AWS 巡检、通知与备份步骤见 [AIOps 平台完整搭建流程](full-setup.md)。
+
 如果只是想看界面，先打开 [离线预览](preview/README.md)。以下步骤适合在一台 Linux 服务器启动完整 ELK 和 sre-aiobs。
 
 ## 1. 准备环境

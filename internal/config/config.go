@@ -13,11 +13,14 @@ import (
 )
 
 type Source struct {
-	Name        string
-	Kind        string
-	URL         string
-	Index       string
-	Environment string
+	Name         string
+	Kind         string
+	URL          string
+	Index        string
+	Environment  string
+	Region       string
+	AWSAccountID string `yaml:"aws_account_id"`
+	AlarmPrefix  string `yaml:"alarm_prefix"`
 
 	CredentialEnv string `yaml:"credential_env"`
 	Username      string
@@ -70,6 +73,9 @@ type Config struct {
 	GeoDB             string   `yaml:"geo_db"`
 }
 
+var awsRegion = regexp.MustCompile(`^[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+$`)
+var awsAccount = regexp.MustCompile(`^[0-9]{12}$`)
+
 var methodName = regexp.MustCompile(`^[A-Z][A-Z0-9_-]{0,31}$`)
 var identifier = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 var elasticField = regexp.MustCompile(`^[a-zA-Z0-9_@.-]+$`)
@@ -113,8 +119,17 @@ func Load(path string) (Config, error) {
 		if s.CheckTimeout < 0 || s.CheckTimeout > 4*time.Second || s.CheckRetries < 0 || s.CheckRetries > 2 {
 			return c, fmt.Errorf("invalid check timeout or retries for %s", s.Name)
 		}
+		if s.Kind == "aws" {
+			if len(s.Region) > 40 || !awsRegion.MatchString(s.Region) || (s.AWSAccountID != "" && !awsAccount.MatchString(s.AWSAccountID)) ||
+				len(s.AlarmPrefix) > 255 || strings.ContainsAny(s.AlarmPrefix, "\r\n") ||
+				s.URL != "" || s.Index != "" || s.CredentialEnv != "" || s.Username != "" || len(s.Fields)+len(s.Routes)+len(s.AllowedMethods)+len(s.Hosts) != 0 {
+				return c, fmt.Errorf("invalid AWS inspection source %s", s.Name)
+			}
+			seen[s.Name] = true
+			continue
+		}
 		if s.Kind != "elasticsearch" {
-			return c, fmt.Errorf("source %s: only kind elasticsearch is supported", s.Name)
+			return c, fmt.Errorf("source %s: kind must be elasticsearch or aws", s.Name)
 		}
 		u, e := url.Parse(s.URL)
 		if e != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") {
