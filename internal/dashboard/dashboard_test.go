@@ -58,6 +58,13 @@ func TestDashboardRoutes(t *testing.T) {
 	if r := request("/api/dashboard", ""); r.Code != 401 || r.Header().Get("WWW-Authenticate") == "" {
 		t.Fatal("missing authentication challenge")
 	}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	req.SetBasicAuth("another-user", "test-password")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, req)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatal("accepted a dashboard password with the wrong username")
+	}
 	if r := request("/api/dashboard?hours=2", "test-password"); r.Code != 400 {
 		t.Fatal("invalid duration accepted")
 	}

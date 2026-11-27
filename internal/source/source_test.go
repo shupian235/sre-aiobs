@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -198,5 +199,26 @@ func TestElasticsearchBasicAuthAndEmptyIndex(t *testing.T) {
 	snapshot, err := client.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
 	if err != nil || snapshot.Total != 0 || calls != 1 {
 		t.Fatalf("snapshot=%+v calls=%d err=%v", snapshot, calls, err)
+	}
+}
+
+type failingTransport struct{ err error }
+
+func (t failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, t.err
+}
+
+func TestLokiTransportErrorDoesNotExposeQuery(t *testing.T) {
+	client := Client{Config: config.Source{Kind: "loki", URL: "https://private.test", Selector: `{app="private-selector"}`}}
+	client.HTTP = &http.Client{Transport: failingTransport{errors.New("private-upstream-error")}}
+	_, err := client.Check(context.Background(), time.Now())
+	if err == nil || err.Error() != "source transport failed" {
+		t.Fatalf("expected sanitized transport error, got %v", err)
+	}
+
+	client.HTTP.Transport = failingTransport{context.DeadlineExceeded}
+	_, err = client.Check(context.Background(), time.Now())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected timeout classification, got %v", err)
 	}
 }

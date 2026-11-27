@@ -43,9 +43,10 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 				http.Error(w, "Dashboard requires DASHBOARD_PASSWORD", http.StatusServiceUnavailable)
 				return
 			}
-			_, secret, ok := r.BasicAuth()
+			username, secret, ok := r.BasicAuth()
 			supplied := sha256.Sum256([]byte(secret))
-			if !ok || subtle.ConstantTimeCompare(expected[:], supplied[:]) != 1 {
+			passwordMatches := subtle.ConstantTimeCompare(expected[:], supplied[:]) == 1
+			if !ok || username != "operator" || !passwordMatches {
 				w.Header().Set("WWW-Authenticate", `Basic realm="SRE AIObs", charset="UTF-8"`)
 				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return

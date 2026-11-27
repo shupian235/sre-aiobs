@@ -210,7 +210,15 @@ func run() error {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		fmt.Fprintf(w, "# TYPE sre_aiobs_runs_total counter\nsre_aiobs_runs_total %d\n# TYPE sre_aiobs_run_failures_total counter\nsre_aiobs_run_failures_total %d\n# TYPE sre_aiobs_ai_failures_total counter\nsre_aiobs_ai_failures_total %d\n", r.Runs.Load(), r.Failures.Load(), r.AIFailures.Load())
 	})
-	server := &http.Server{Addr: c.Listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second}
+	server := &http.Server{
+		Addr:              c.Listen,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		MaxHeaderBytes:    16 << 10,
+	}
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- server.ListenAndServe() }()
 	defer func() {

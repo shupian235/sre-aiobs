@@ -23,7 +23,13 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -e .env ]]; then
+if [[ -L .env || ( -e .env && ! -f .env ) ]]; then
+  printf '.env 必须是普通文件。\n' >&2
+  exit 1
+fi
+if [[ -f .env ]]; then
+  chmod 0600 .env
+else
   command -v openssl >/dev/null || { printf '首次启动需要 OpenSSL 生成密码。\n' >&2; exit 1; }
   postgres=$(openssl rand -hex 24)
   redis=$(openssl rand -hex 24)

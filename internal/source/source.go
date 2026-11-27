@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -39,7 +40,7 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.Config.URL, "/")+path, &b)
 	if err != nil {
-		return err
+		return errors.New("invalid source request")
 	}
 	if secret := os.Getenv(c.Config.CredentialEnv); secret != "" {
 		scheme := "Bearer"
@@ -58,7 +59,14 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("source request: %w", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return context.DeadlineExceeded
+		}
+		if errors.Is(err, context.Canceled) {
+			return context.Canceled
+		}
+		// Transport errors can contain the full upstream URL and LogQL selector.
+		return errors.New("source transport failed")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {

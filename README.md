@@ -59,6 +59,8 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 ## 本地验证
 
+[安全审查](docs/security-review.md)记录已修复问题、部署风险和审查范围。
+
 ```sh
 go test ./...
 go vet ./...
