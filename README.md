@@ -6,6 +6,14 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 
 打开仓库里的 [离线演示](docs/preview/index.html)，在 GitHub 文件页点击 **Download raw file**，下载后双击 `index.html`。演示包含安全概览、Nginx 风险接口、漏洞检测、数据源列表和告警设置，使用模拟数据，支持筛选和查看详情。
 
+### 功能示意图
+
+![SRE AIObs 日志采集、聚合、检测与展示](docs/preview/images/architecture.png)
+
+![Nginx 风险观察中的检测类别和筛选维度](docs/preview/images/nginx-risk.png)
+
+![漏洞发现、Slack 与 Telegram 告警及 AWS SES 定期邮件](docs/preview/images/vulnerability-alerts.png)
+
 ## 部署方式
 
 | 环境 | 部署入口 |
