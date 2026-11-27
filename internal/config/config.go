@@ -13,18 +13,18 @@ import (
 )
 
 type Source struct {
-	Name           string
-	Kind           string
-	URL            string
-	Index          string
-	Environment    string
-	Selector       string
-	CredentialEnv  string `yaml:"credential_env"`
-	Username       string
-	Region         string
-	CheckTimeout   time.Duration `yaml:"check_timeout"`
-	CheckRetries   int           `yaml:"check_retries"`
-	Tenant         string
+	Name        string
+	Kind        string
+	URL         string
+	Index       string
+	Environment string
+
+	CredentialEnv string `yaml:"credential_env"`
+	Username      string
+
+	CheckTimeout time.Duration `yaml:"check_timeout"`
+	CheckRetries int           `yaml:"check_retries"`
+
 	Fields         map[string]string
 	Hosts          []string
 	Routes         []Route
@@ -73,7 +73,6 @@ type Config struct {
 var methodName = regexp.MustCompile(`^[A-Z][A-Z0-9_-]{0,31}$`)
 var identifier = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 var elasticField = regexp.MustCompile(`^[a-zA-Z0-9_@.-]+$`)
-var lokiField = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 var indexPattern = regexp.MustCompile(`^[a-zA-Z0-9_.*,-]+$`)
 
 func Load(path string) (Config, error) {
@@ -114,40 +113,24 @@ func Load(path string) (Config, error) {
 		if s.CheckTimeout < 0 || s.CheckTimeout > 4*time.Second || s.CheckRetries < 0 || s.CheckRetries > 2 {
 			return c, fmt.Errorf("invalid check timeout or retries for %s", s.Name)
 		}
-		if s.Kind == "cloudwatch" {
-			if s.Region == "" || !identifier.MatchString(s.Region) || s.URL != "" || s.CredentialEnv != "" {
-				return c, fmt.Errorf("CloudWatch source %s requires an AWS region and SDK credentials", s.Name)
-			}
-		} else {
-			u, e := url.Parse(s.URL)
-			if e != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") {
-				return c, fmt.Errorf("invalid source URL for %s", s.Name)
-			}
+		if s.Kind != "elasticsearch" {
+			return c, fmt.Errorf("source %s: only kind elasticsearch is supported", s.Name)
 		}
-		if s.Username != "" && (s.Kind != "elasticsearch" || s.CredentialEnv == "" || !identifier.MatchString(s.Username)) {
+		u, e := url.Parse(s.URL)
+		if e != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return c, fmt.Errorf("invalid source URL for %s", s.Name)
+		}
+		if s.Username != "" && (s.CredentialEnv == "" || !identifier.MatchString(s.Username)) {
 			return c, fmt.Errorf("invalid Elasticsearch username or missing credential_env for %s", s.Name)
 		}
 		if s.CredentialEnv != "" && os.Getenv(s.CredentialEnv) == "" {
 			return c, fmt.Errorf("missing credential for %s", s.Name)
 		}
-		switch s.Kind {
-		case "elasticsearch":
-			if !indexPattern.MatchString(s.Index) || !elasticField.MatchString(s.Fields["timestamp"]) {
-				return c, fmt.Errorf("invalid index or timestamp field for %s", s.Name)
-			}
-		case "loki":
-			if s.Selector == "" {
-				return c, fmt.Errorf("missing Loki selector for %s", s.Name)
-			}
-		case "prometheus", "victoriametrics", "kubernetes", "cloudwatch":
-			if len(s.Fields) != 0 || len(s.Routes) != 0 || s.Selector != "" || s.Index != "" {
-				return c, fmt.Errorf("unexpected log fields for monitoring source %s", s.Name)
-			}
-		default:
-			return c, fmt.Errorf("invalid source kind for %s", s.Name)
+		if !indexPattern.MatchString(s.Index) || !elasticField.MatchString(s.Fields["timestamp"]) {
+			return c, fmt.Errorf("invalid index or timestamp field for %s", s.Name)
 		}
 		for _, field := range s.Fields {
-			if (s.Kind == "elasticsearch" && !elasticField.MatchString(field)) || (s.Kind == "loki" && !lokiField.MatchString(field)) {
+			if !elasticField.MatchString(field) {
 				return c, fmt.Errorf("invalid field for %s", s.Name)
 			}
 		}
@@ -178,8 +161,4 @@ func ValidateRoutes(routes []Route) error {
 		}
 	}
 	return nil
-}
-
-func (s Source) IsLogSource() bool {
-	return s.Kind == "elasticsearch" || s.Kind == "loki"
 }

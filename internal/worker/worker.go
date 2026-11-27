@@ -13,7 +13,6 @@ import (
 
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/detect"
-	"sre-aiobs/internal/metrics"
 	"sre-aiobs/internal/platform"
 	"sre-aiobs/internal/source"
 	"sre-aiobs/internal/store"
@@ -33,11 +32,11 @@ type Notifier interface {
 }
 
 type Runner struct {
-	Store                      store.Store
-	HTTP                       *http.Client
-	Notifier                   Notifier
-	Analyzer                   platform.Analyzer
-	Metrics                    metrics.Victoria
+	Store    store.Store
+	HTTP     *http.Client
+	Notifier Notifier
+	Analyzer platform.Analyzer
+
 	Geo                        detect.Geo
 	Runs, Failures, AIFailures atomic.Uint64
 }
@@ -77,7 +76,7 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 	if err != nil {
 		return err
 	}
-	report := platform.Report{LatencyThreshold: c.Rules.Latency, VulnerabilityScan: s.Fields["vulnerability"] != "", Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window}
+	report := platform.Report{VulnerabilityScan: s.Fields["vulnerability"] != "", Source: s.Name, Index: s.Index, Environment: s.Environment, Window: j.Window}
 	if !saved {
 		snapshot, err = (source.Client{Config: s, HTTP: r.HTTP}).Aggregate(ctx, j.Window)
 		if err != nil {
@@ -125,11 +124,7 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 		}
 	}
 	report.Snapshot, report.Events, report.Analysis = snapshot, events, analysis
-	report.MetricsURL = r.Metrics.Link(j)
 	var failures error
-	if r.Metrics.WriteURL != "" {
-		failures = r.Store.Notification(ctx, j.ID, "victoriametrics", func() error { return r.Metrics.Write(ctx, j, report) })
-	}
 	telegram := j.Kind == "minute" && c.TelegramChat != ""
 	slack := j.Kind == "minute" && os.Getenv("SLACK_WEBHOOK_URL") != ""
 	email := (j.Kind == "hour" || j.Kind == "day") && len(c.EmailTo) > 0
@@ -157,9 +152,6 @@ func (r *Runner) Cycle(ctx context.Context, c config.Config) {
 	slots := make(chan struct{}, 8)
 	var tasks sync.WaitGroup
 	for _, s := range c.Sources {
-		if !s.IsLogSource() {
-			continue
-		}
 		for _, schedule := range Schedules {
 			tasks.Add(1)
 			go func() {

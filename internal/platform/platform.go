@@ -35,8 +35,6 @@ type Analysis struct {
 	Actions  []string `json:"actions"`
 }
 type Report struct {
-	LatencyThreshold           float64
-	MetricsURL                 string
 	VulnerabilityScan          bool
 	Source, Index, Environment string
 	Window                     Window

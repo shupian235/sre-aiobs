@@ -148,26 +148,3 @@ func TestAlertSettingsAuthorizationAndValidation(t *testing.T) {
 		t.Fatalf("GET = %d, %s", r.Code, r.Body)
 	}
 }
-
-func TestMetricsLinkRequiresAuthentication(t *testing.T) {
-	const id = "0123456789abcdef0123456789abcdef"
-	mux := http.NewServeMux()
-	Mount(mux, &fixtureReader{}, "test", SourceAccess{MetricsLink: func(_ context.Context, got string) (string, error) {
-		if got != id {
-			t.Fatalf("unexpected run ID %q", got)
-		}
-		return "https://metrics.example/api/v1/query_range?query=fixture", nil
-	}})
-	req := httptest.NewRequest("GET", "/api/metrics-link/"+id, nil)
-	res := httptest.NewRecorder()
-	mux.ServeHTTP(res, req)
-	if res.Code != 401 {
-		t.Fatalf("unprotected endpoint: %d", res.Code)
-	}
-	req.SetBasicAuth("operator", "test")
-	res = httptest.NewRecorder()
-	mux.ServeHTTP(res, req)
-	if res.Code != 302 || res.Header().Get("Location") != "https://metrics.example/api/v1/query_range?query=fixture" {
-		t.Fatalf("redirect: %d %s", res.Code, res.Header().Get("Location"))
-	}
-}

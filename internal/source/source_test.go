@@ -3,7 +3,6 @@ package source
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -53,21 +52,6 @@ func TestCompositeCursorAndReadOnlySearch(t *testing.T) {
 	}
 }
 
-func TestLokiUsesInstantMetricQuery(t *testing.T) {
-	clientHTTP := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" || r.URL.Path != "/loki/api/v1/query" || !strings.Contains(r.URL.Query().Get("query"), "count_over_time") {
-			t.Error("unexpected API operation")
-		}
-		fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{"client_ip":"192.0.2.1"},"value":[0,"2"]}]}}`)
-	}))
-	client := Client{Config: config.Source{URL: "https://logs.test", Kind: "loki", Selector: `{app="nginx"}`, Fields: map[string]string{"ip": "client_ip"}}, HTTP: clientHTTP}
-	end := time.Now()
-	snapshot, err := client.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
-	if err != nil || snapshot.Total != 2 || len(snapshot.Buckets) != 1 {
-		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
-	}
-}
-
 type handlerTransport struct{ http.Handler }
 
 func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -77,26 +61,6 @@ func (h handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 func testHTTP(h http.Handler) *http.Client {
 	return &http.Client{Transport: handlerTransport{h}}
-}
-
-func TestLokiBackendExtractsOnlyConfiguredClassification(t *testing.T) {
-	clientHTTP := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("query")
-		if strings.Contains(q, "sum by") {
-			if !strings.Contains(q, `| json sre_aiobs_classification="exception_type" |`) {
-				t.Errorf("unexpected parser: %s", q)
-			}
-			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{"sre_aiobs_classification":"OrderError"},"value":[0,"2"]}]}}`)
-			return
-		}
-		fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"5"]}]}}`)
-	}))
-	c := Client{Config: config.Source{URL: "https://logs.test", Kind: "loki", Selector: `{app="orders"}`, Fields: map[string]string{"exception": "exception_type"}}, HTTP: clientHTTP}
-	end := time.Now()
-	snapshot, err := c.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
-	if err != nil || snapshot.Total != 5 || len(snapshot.Buckets) != 1 || snapshot.Buckets[0] != (platform.Bucket{Dimension: "exception", Value: "OrderError", Count: 2}) {
-		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
-	}
 }
 
 func TestElasticsearchBackendUsesMappedCompositeField(t *testing.T) {
@@ -157,32 +121,6 @@ func TestWindowLatencyFromElasticsearch(t *testing.T) {
 	}
 }
 
-func TestLokiWindowLatencyCombinesStreams(t *testing.T) {
-	calls := 0
-	clientHTTP := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		query := r.URL.Query().Get("query")
-		if calls == 1 {
-			if !strings.Contains(query, "count_over_time") {
-				t.Errorf("unexpected total query: %s", query)
-			}
-			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"3"]}]}}`)
-			return
-		}
-		percentiles := []string{"50", "90", "95", "99"}
-		if calls > 5 || !strings.HasPrefix(query, "quantile_over_time(0."+percentiles[calls-2]+",") || !strings.HasSuffix(query, "by ()") || !strings.Contains(query, " unwrap request_time ") {
-			t.Errorf("unexpected percentile query: %s", query)
-		}
-		fmt.Fprintf(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"0.%d"]}]}}`, calls)
-	}))
-	c := Client{Config: config.Source{URL: "https://logs.test", Kind: "loki", Selector: `{app="nginx"}`, Fields: map[string]string{"latency": "request_time"}}, HTTP: clientHTTP}
-	end := time.Now()
-	snapshot, err := c.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
-	if err != nil || calls != 5 || snapshot.OverallLatency["50.0"] != 0.2 || snapshot.OverallLatency["90.0"] != 0.3 || snapshot.OverallLatency["95.0"] != 0.4 || snapshot.OverallLatency["99.0"] != 0.5 {
-		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
-	}
-}
-
 func TestElasticsearchBasicAuthAndEmptyIndex(t *testing.T) {
 	t.Setenv("TEST_ES_BASIC_SECRET", "fixture-password")
 	calls := 0
@@ -199,27 +137,6 @@ func TestElasticsearchBasicAuthAndEmptyIndex(t *testing.T) {
 	snapshot, err := client.Aggregate(context.Background(), platform.Window{Start: end.Add(-time.Minute), End: end})
 	if err != nil || snapshot.Total != 0 || calls != 1 {
 		t.Fatalf("snapshot=%+v calls=%d err=%v", snapshot, calls, err)
-	}
-}
-
-type failingTransport struct{ err error }
-
-func (t failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, t.err
-}
-
-func TestLokiTransportErrorDoesNotExposeQuery(t *testing.T) {
-	client := Client{Config: config.Source{Kind: "loki", URL: "https://private.test", Selector: `{app="private-selector"}`}}
-	client.HTTP = &http.Client{Transport: failingTransport{errors.New("private-upstream-error")}}
-	_, err := client.Check(context.Background(), time.Now())
-	if err == nil || err.Error() != "source transport failed" {
-		t.Fatalf("expected sanitized transport error, got %v", err)
-	}
-
-	client.HTTP.Transport = failingTransport{context.DeadlineExceeded}
-	_, err = client.Check(context.Background(), time.Now())
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("expected timeout classification, got %v", err)
 	}
 }
 

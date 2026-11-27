@@ -127,7 +127,7 @@ def main():
     count = metric()
     avg_latency = metric("avg", "request_time")
     p99 = metric("percentiles", "request_time", percents=[99])
-    p_all = metric("percentiles", "request_time", percents=[50, 95, 99])
+    p_all = metric("percentiles", "request_time", percents=[50, 90, 95, 99])
     error = metric("avg", "error_rate_sample", customLabel="错误率 (%)")
     status_counts = (count, metric("sum", "status_4xx_sample", customLabel="4xx"),
                      metric("sum", "status_5xx_sample", customLabel="5xx"), error)
@@ -137,7 +137,7 @@ def main():
     traffic.panel("p99", "2xx 响应时间 P99 (s)", "metric", (p99,), "status >= 200 AND status < 300", width=12)
     traffic.panel("request-trend", "请求量趋势", "line", (count, histogram()))
     traffic.panel("qps", "每分钟平均 QPS / RPS", "vega")
-    traffic.panel("percentiles", "响应时间 P50 / P95 / P99 (s)", "line", (p_all, histogram()), width=48)
+    traffic.panel("percentiles", "响应时间 P50 / P90 / P95 / P99 (s)", "line", (p_all, histogram()), width=48)
     traffic.panel("host-trend", "按域名请求趋势", "line", (count, histogram(), terms("nginx_host", 10, "group")))
     traffic.panel("service-trend", "按服务请求趋势", "line", (count, histogram(), terms("service", 10, "group")))
     traffic.panel("service-p99", "按服务 P99 (s)", "line", (p99, histogram(), terms("service", 10, "group")))

@@ -5,7 +5,6 @@ go 1.27.4
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.39.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/oschwald/maxminddb-golang v1.13.1

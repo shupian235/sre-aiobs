@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"sre-aiobs/internal/store"
 )
+
+var runIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type reportStore interface {
 	RunReport(context.Context, string) (store.RunReport, error)

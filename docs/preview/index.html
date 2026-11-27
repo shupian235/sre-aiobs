@@ -66,7 +66,7 @@ dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(-
     </section>
     <section id="sources" class="panel listing">
       <div class="panel-head"><div><h2>日志数据源</h2><p id="source-status" role="status">正在加载配置…</p></div></div>
-      <p class="source-hint">应用日志已进入 Loki 或 Elasticsearch 时，可直接接入。「检查」显示最近 1 分钟的匹配日志量。</p>
+      <p class="source-hint">应用日志已进入 Elasticsearch 时，可直接接入。「检查」显示最近 1 分钟的匹配日志量。</p>
       <div class="table-wrap"><table><thead><tr><th>数据源</th><th>类型</th><th>环境</th><th>探测能力</th><th>连通性</th></tr></thead><tbody id="source-body"></tbody></table></div>
     </section>
     <section id="nginx-routes" class="panel listing">
@@ -377,16 +377,16 @@ function renderSources(sources) {
     check.addEventListener("click",()=>checkSource(source.name,check,status));
     cell.append(check,status);
     const capabilities=[source.backend?"后端日志":"",source.vulnerabilities?"漏洞扫描":""].filter(Boolean);
-    return [source.name,source.kind==="loki"?"Loki":"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
+    return [source.name,"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
   });
 }
 
 function loadSources() {
   renderSources([
-    {name:"nginx-edge-demo",kind:"loki",environment:"demo"},
+    {name:"nginx-edge-demo",kind:"elasticsearch",environment:"demo"},
     {name:"nginx-api-demo",kind:"elasticsearch",environment:"demo"},
-    {name:"orders-backend-demo",kind:"loki",environment:"demo",backend:true},
-    {name:"scanner-demo",kind:"loki",environment:"demo",vulnerabilities:true}
+    {name:"orders-backend-demo",kind:"elasticsearch",environment:"demo",backend:true},
+    {name:"scanner-demo",kind:"elasticsearch",environment:"demo",vulnerabilities:true}
   ]);
   byId("source-status").textContent="演示数据源 · 连通性结果为模拟。";
 }

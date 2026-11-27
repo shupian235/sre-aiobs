@@ -35,7 +35,6 @@ else
   redis=$(openssl rand -hex 24)
   dashboard=$(openssl rand -hex 24)
   settings=$(openssl rand -hex 24)
-  grafana=$(openssl rand -hex 24)
   # The Compose CLI reads this private file and injects values into containers.
   (
     umask 077
@@ -49,7 +48,6 @@ DATABASE_URL=postgres://aiobs:$postgres@postgres:5432/aiobs?sslmode=disable
 REDIS_URL=redis://:$redis@redis:6379/0
 DASHBOARD_PASSWORD=$dashboard
 ALERT_SETTINGS_PASSWORD=$settings
-GRAFANA_ADMIN_PASSWORD=$grafana
 ENV
   )
 fi
@@ -76,7 +74,7 @@ if [[ ! -e config.yaml ]]; then
   (umask 022; set -o noclobber; cat "$starter" >config.yaml)
 fi
 
-compose=(docker compose --env-file .env -f compose.yaml -f compose.victoriametrics.yaml -f compose.grafana.yaml)
+compose=(docker compose --env-file .env -f compose.yaml)
 if $elasticsearch; then compose+=(-f compose.elasticsearch.yaml); fi
 if $gateway; then compose+=(-f compose.elasticsearch-ingress.yaml); fi
 if $collector; then compose+=(-f compose.nginx-collector.yaml); fi
@@ -95,7 +93,6 @@ printf '\n容器状态与端口映射\n'
 "${compose[@]}" ps -a
 printf '\n默认入口\n'
 printf '  运维看板 http://127.0.0.1:8080/（operator，密码见 .env 中的 DASHBOARD_PASSWORD）\n'
-printf '  Grafana  http://127.0.0.1:3001/（admin，密码见 .env 中的 GRAFANA_ADMIN_PASSWORD）\n'
 if $elk; then
   printf '  Kibana   http://127.0.0.1:%s/（elastic，密码见 .env 中的 ELASTIC_PASSWORD）\n' "${KIBANA_PORT:-5601}"
 fi

@@ -13,11 +13,10 @@ import (
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
-	Login           *Login
-	MetricsLink     MetricsLink
-	Current         func() []config.Source
-	HTTP            *http.Client
-	CheckCloudWatch func(context.Context, string) error
+	Login *Login
+
+	Current func() []config.Source
+	HTTP    *http.Client
 }
 
 func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Handler) http.HandlerFunc) {
@@ -72,14 +71,7 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 		var count int64
 		var err error
 		for attempt := 0; ; attempt++ {
-			switch {
-			case selected.IsLogSource():
-				count, err = client.Check(ctx, started)
-			case selected.Kind == "cloudwatch" && access.CheckCloudWatch != nil:
-				err = access.CheckCloudWatch(ctx, selected.Region)
-			default:
-				err = client.Monitor(ctx)
-			}
+			count, err = client.Check(ctx, started)
 			var status source.HTTPStatusError
 			if err == nil || ctx.Err() != nil || attempt >= selected.CheckRetries ||
 				(errors.As(err, &status) && status < 500 && status != 429) {
@@ -103,9 +95,7 @@ func mountSources(mux *http.ServeMux, access SourceAccess, protect func(http.Han
 			DurationMS int64     `json:"duration_ms"`
 			CheckedAt  time.Time `json:"checked_at"`
 		}{Status: "ok", DurationMS: time.Since(started).Milliseconds(), CheckedAt: started}
-		if selected.IsLogSource() {
-			result.Count = &count
-		}
+		result.Count = &count
 		if err != nil {
 			result.Status, result.Code, result.Count = "failed", "query_failed", nil
 			var status source.HTTPStatusError

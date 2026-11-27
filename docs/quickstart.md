@@ -28,7 +28,7 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 | 单机 ELK 与本机 Filebeat | `--with-elk --with-nginx-collector` |
 | 先启动 ELK，稍后接入采集 | `--with-elk` |
 | ELK 中心接入多台远程 Filebeat | `--with-elk --with-ingest-gateway` |
-| 已有 Elasticsearch 或 Loki | 运行 `./deploy/single-node/start.sh`，按 [数据源说明](deployment.md#日志源) 配置服务 |
+| 已有 Elasticsearch | 运行 `./deploy/single-node/start.sh`，按 [数据源说明](deployment.md#日志源) 配置服务 |
 
 脚本首次生成 `.env` 和 `config.yaml`，后续复用文件与数据卷。已有配置的服务器要把 [内置 Elasticsearch 源](../deploy/single-node/config.elasticsearch.yaml) 合并进自己的配置。可在选项末尾加 `--check` 先校验 Compose，该模式会初始化本地配置但不会启动容器。
 
@@ -39,17 +39,16 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 | 界面 | 本机入口 | 初始账号及密码变量 |
 | --- | --- | --- |
 | 运维看板 | `http://127.0.0.1:8080/` | `operator`，`DASHBOARD_PASSWORD` |
-| Grafana | `http://127.0.0.1:3001/` | `admin`，`GRAFANA_ADMIN_PASSWORD` |
 | Kibana | `http://127.0.0.1:5601/` | `elastic`，`ELASTIC_PASSWORD` |
 
 在自己电脑查看远程服务器时，先建立 SSH 隧道，然后用相同的本机地址打开网页：
 
 ```bash
-ssh -N -L 8080:127.0.0.1:8080 -L 3001:127.0.0.1:3001 \
+ssh -N -L 8080:127.0.0.1:8080 \
   -L 5601:127.0.0.1:5601 user@server
 ```
 
-Kibana 启动时会安装两份 Nginx 看板，在 **Analytics → Dashboard** 打开「Nginx Access 日志看板」和「Nginx 地理分布看板」。看板已安装但暂无数据时，先在 Kibana **Discover → Nginx** 选择覆盖日志时间的范围，确认有记录。再到运维看板 **日志数据源 → 检查** 核对最近一分钟计数，在 Grafana 的 **Nginx Access 日志看板**看 QPS 与 P50／P95／P99，在 **Nginx 地理分布看板**看国家、城市和 IP。地区指标需要可用的 GeoIP 数据与正确的客户端 IP。
+Kibana 启动时会安装两份 Nginx 看板，在 **Analytics → Dashboard** 打开「Nginx Access 日志看板」和「Nginx 地理分布看板」。看板已安装但暂无数据时，先在 Kibana **Discover → Nginx** 选择覆盖日志时间的范围，确认有记录。再到运维看板 **日志数据源 → 检查** 核对最近一分钟计数，在 Kibana 的 **Nginx Access 日志看板**看 QPS 与 P50／P90／P95／P99，在 **Nginx 地理分布看板**看国家、城市和 IP。地区指标需要可用的 GeoIP 数据与正确的客户端 IP。
 
 如果页面打不开，在部署机运行 `curl -fsS http://127.0.0.1:8080/readyz` 并核对启动命令输出的容器状态。如果 Kibana 能打开但没有日志，先核对挂载目录、文件名及 JSON 格式，再检查 Discover 的时间范围。
 
@@ -76,4 +75,4 @@ openssl rand 20 | base32
 
 在 Google Authenticator 选择 **输入设置密钥**，账号填 `SRE AIObs:operator`，密钥填刚生成的值，类型选择 **基于时间**。将同一密钥放入部署机 `.env` 的 `DASHBOARD_TOTP_SECRET`，再以原选项运行启动脚本。Kubernetes 使用现有 `sre-aiobs-env` Secret 注入该变量并滚动重启。
 
-启用后，在 HTTPS 入口访问运维看板，输入 `operator`、`DASHBOARD_PASSWORD` 和手机上的 6 位动态码。登录会话为 8 小时，可以在侧栏退出。服务器需要正确的时间和可用的 Redis。配置留空时沿用原先的 Basic Auth。Grafana 与 Kibana 使用各自的登录配置。请重新配置依赖 Basic Auth 的运维 API 调用，因为启用双重验证后运维 API 也要求会话。
+启用后，在 HTTPS 入口访问运维看板，输入 `operator`、`DASHBOARD_PASSWORD` 和手机上的 6 位动态码。登录会话为 8 小时，可以在侧栏退出。服务器需要正确的时间和可用的 Redis。配置留空时沿用原先的 Basic Auth。Kibana 使用独立的登录配置。请重新配置依赖 Basic Auth 的运维 API 调用，因为启用双重验证后运维 API 也要求会话。

@@ -14,21 +14,8 @@ export TEST_ES_PORT="${TEST_ES_PORT:-19200}"
 export AIOBS_PORT="${AIOBS_PORT:-18080}"
 export COMPOSE_PROJECT_NAME="sre-aiobs-it-$(openssl rand -hex 8)"
 compose=(docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yaml -f tests/compose.integration.yaml)
-export GRAFANA_URL=""
-export VICTORIAMETRICS_WRITE_URL=""
-export VICTORIAMETRICS_READ_URL=""
-export VICTORIAMETRICS_WRITE_TOKEN=""
-if [[ "${TEST_VICTORIAMETRICS:-0}" == 1 ]]; then
-  export VICTORIAMETRICS_PORT="${VICTORIAMETRICS_PORT:-18428}"
-  export VICTORIAMETRICS_READ_URL="http://127.0.0.1:${VICTORIAMETRICS_PORT}"
-  compose+=(-f compose.victoriametrics.yaml -f tests/compose.integration-vm.yaml)
-fi
 trap '"${compose[@]}" down' EXIT
 "${compose[@]}" up -d elastic postgres redis
-if [[ "${TEST_VICTORIAMETRICS:-0}" == 1 ]]; then
-  "${compose[@]}" up -d victoriametrics
-  curl --retry 15 --retry-all-errors --retry-delay 1 -fsS "http://127.0.0.1:${VICTORIAMETRICS_PORT}/health" >/dev/null
-fi
 "${compose[@]}" build app migrate
 for ((i=0; i<90; i++)); do
   if curl -fsS "http://127.0.0.1:${TEST_ES_PORT}/_cluster/health" >/dev/null 2>&1; then break; fi
@@ -110,7 +97,7 @@ assert not json.load(sys.stdin)["overridden"]
 '
 curl -fsS --user "operator:${DASHBOARD_PASSWORD}" "$base/api/sources" | python3 -c '
 import json,sys
-assert json.load(sys.stdin)==[{"name":"integration-nginx","kind":"elasticsearch","environment":"test","backend":True,"vulnerabilities":True}]
+assert json.load(sys.stdin)==[{"name":"integration-nginx","kind":"elasticsearch","environment":"test","backend":True,"vulnerabilities":True,"routes":True}]
 '
 curl -fsS --user "operator:${DASHBOARD_PASSWORD}" -X POST -H 'X-SRE-AIObs-Check: 1' "$base/api/sources/integration-nginx/check" | python3 -c '
 import json,sys
@@ -131,29 +118,3 @@ data=json.load(sys.stdin)
 assert data["total"]==1 and data["counts"]=={"scanner_vulnerability":1}
 assert data["events"][0]["event"]["Target"]=="CVE-2099-0001"
 '
-
-if [[ "${TEST_VICTORIAMETRICS:-0}" == 1 ]]; then
-  id="$(sql "SELECT id FROM runs WHERE source='integration-nginx' AND kind='five_minutes' AND window_end='$end'")"
-  metrics_link="$(curl -fsS --user "operator:${DASHBOARD_PASSWORD}" -o /dev/null -w '%{redirect_url}' "$base/api/metrics-link/$id")"
-  test "${metrics_link%%\?*}" = "http://127.0.0.1:${VICTORIAMETRICS_PORT}/api/v1/query_range"
-  test "$(sql "SELECT status FROM notifications WHERE run_id='$id' AND channel='victoriametrics'")" = sent
-  for ((i=0; i<20; i++)); do
-    if curl -fsS "$metrics_link" | python3 -c '
-import json, sys
-data = json.load(sys.stdin)
-expected_end = int(sys.argv[1])
-series = {(row["metric"]["__name__"], row["metric"].get("quantile")): dict(row["values"]) for row in data["data"]["result"]}
-logs = series.get(("sre_aiobs_window_logs", None), {})
-evaluated = series.get(("sre_aiobs_window_evaluated", None), {})
-latency = [series.get(("sre_aiobs_window_latency_seconds", q), {}).get(expected_end) for q in ("0.50", "0.95", "0.99")]
-breach = series.get(("sre_aiobs_window_latency_p95_breach", None), {})
-if logs.get(expected_end) != "7" or evaluated.get(expected_end) != "1" or breach.get(expected_end) != "1" or any(v is None for v in latency):
-    sys.exit(1)
-values = list(map(float, latency))
-sys.exit(not (0 < values[0] <= values[1] <= values[2]))
-' "$window_end"; then exit 0; fi
-    sleep 1
-  done
-  printf 'VictoriaMetrics did not return the expected window samples.\n' >&2
-  exit 1
-fi

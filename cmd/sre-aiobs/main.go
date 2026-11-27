@@ -17,16 +17,13 @@ import (
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/redis/go-redis/v9"
 	"sre-aiobs/internal/ai"
 	"sre-aiobs/internal/config"
 	"sre-aiobs/internal/dashboard"
-	"sre-aiobs/internal/metrics"
 	"sre-aiobs/internal/notify"
 	"sre-aiobs/internal/store"
 	"sre-aiobs/internal/worker"
@@ -99,20 +96,6 @@ func run() error {
 		return errors.New("failed to initialize AWS configuration")
 	}
 	r := &worker.Runner{Store: st, HTTP: client, Notifier: notify.Service{HTTP: client, Store: st, SES: sesv2.NewFromConfig(aws)}}
-	victoria := metrics.Victoria{HTTP: client, WriteURL: os.Getenv("VICTORIAMETRICS_WRITE_URL"), ReadURL: os.Getenv("VICTORIAMETRICS_READ_URL"), Token: os.Getenv("VICTORIAMETRICS_WRITE_TOKEN")}
-	if err := metrics.ValidateURL(victoria.WriteURL); err != nil {
-		return fmt.Errorf("VICTORIAMETRICS_WRITE_URL: %w", err)
-	}
-	if err := metrics.ValidateURL(victoria.ReadURL); err != nil {
-		return fmt.Errorf("VICTORIAMETRICS_READ_URL: %w", err)
-	}
-	victoria.GrafanaURL = os.Getenv("GRAFANA_URL")
-	if err := metrics.ValidateURL(victoria.GrafanaURL); err != nil {
-		return fmt.Errorf("GRAFANA_URL: %w", err)
-	}
-
-	r.Metrics = victoria
-
 	var aiClient *ai.Client
 	updateAI := func(c config.Config) {
 		if c.AI.Provider == "" {
@@ -170,9 +153,7 @@ func run() error {
 			}
 		}
 		for _, s := range c.Sources {
-			if s.IsLogSource() {
-				err = errors.Join(err, r.Run(ctx, c, s, schedule, end))
-			}
+			err = errors.Join(err, r.Run(ctx, c, s, schedule, end))
 		}
 		return err
 	}
@@ -183,25 +164,6 @@ func run() error {
 	access := dashboard.SourceAccess{
 		Current: func() []config.Source { return activeConfig.Load().Sources },
 		HTTP:    client,
-		CheckCloudWatch: func(ctx context.Context, region string) error {
-			regional := aws
-			regional.Region = region
-			cw := cloudwatch.NewFromConfig(regional, func(o *cloudwatch.Options) { o.RetryMaxAttempts = 1 })
-			_, err := cw.ListMetrics(ctx, &cloudwatch.ListMetricsInput{})
-			return err
-		},
-	}
-	if victoria.ReadURL != "" || victoria.GrafanaURL != "" {
-		access.MetricsLink = func(ctx context.Context, id string) (string, error) {
-			job, err := st.RunWindow(ctx, id)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return "", nil
-			}
-			if err != nil {
-				return "", err
-			}
-			return victoria.Link(job), nil
-		}
 	}
 	dashboardPassword := os.Getenv("DASHBOARD_PASSWORD")
 	login, err := dashboard.NewLogin(os.Getenv("DASHBOARD_TOTP_SECRET"), dashboardPassword, cache)

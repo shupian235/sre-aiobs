@@ -4,10 +4,10 @@
 
 | 模块 | 已有能力 | 本阶段新增 |
 | --- | --- | --- |
-| 日志与数据源 | Elasticsearch Composite 分页、Loki 聚合、各源只读连接检查 | Prometheus、VictoriaMetrics、CloudWatch、Kubernetes 的统一只读连接检查 |
+| 日志与数据源 | Elasticsearch Composite 分页与只读连接检查 | 支持按环境和索引配置 |
 | Nginx 巡检 | IP、URI、Host、UA、状态码、敏感路径、动态基线、事件关联与地区 | 按来源自动应用已保存的路由规则或 YAML 默认规则 |
 | 后端业务 | 严重错误、异常类型、依赖故障，按日志来源组织 | 可选 WARN 激增和业务错误码激增，业务标识对外使用哈希 |
-| 性能 | 聚合请求量、QPS、分位数与 Grafana | Elasticsearch、Loki 与 VictoriaMetrics 增加 P90，和其他分位数一同展示 |
+| 性能 | 聚合请求量、QPS 和分位数 | Kibana 与巡检报告展示 P50、P90、P95、P99 |
 | 执行与报告 | Go 定时任务、Run ID、分布式锁、任务重试、审计、OpenAI／Claude、Telegram／Slack／SES、HTML 邮件 | 任务记录可直接预览与下载历史报告，显示独立的通知投递状态 |
 
 ## 文件和迁移
@@ -16,14 +16,12 @@
 - `internal/store/routes.go` 在同一事务中保存或清除覆盖项并写入 `audit_logs`。
 - `internal/dashboard` 提供兼容已有调用的路由设置 API 和统一数据源检查；`internal/worker` 在解析新风险事件前读取对应来源的覆盖项。
 - `internal/store/report.go` 和 `internal/dashboard/reports.go` 从现有数据表只读生成历史报告，无需新建报告表。
-- `internal/source`、`internal/detect`、`internal/metrics` 与 `deploy/grafana/dashboard.json` 增加只读监控检查、规则与分位数。
+- `internal/source`、`internal/detect`与 `deploy/elk/dashboards` 提供只读日志查询、检测规则及分位数。
 - 完整 YAML 从 [config.example.yaml](../config.example.yaml) 开始调整。ELK 部署见 [快速部署](quickstart.md)。
 
 ## 配置及 IAM
 
 连接检查可选填 `check_timeout`（默认 3 秒，最大 4 秒）及 `check_retries`（默认 0，最多 2 次），重试包含在同一个超时窗口内。同一实例最多并发四个手动检查。
-
-Prometheus 或 VictoriaMetrics 以固定 `vector(1)` 只读查询验证 API。Kubernetes 查询 `GET /version`，使用受信 CA 与最小权限的 Token；该检查只验证 API 连接与该端点访问。CloudWatch 通过 AWS SDK 的凭据链和配置中的 `region` 调用 `cloudwatch:ListMetrics`，生产优先使用 IAM Role。监控连接检查当前由界面触发；日志源仍按既有计划执行聚合巡检。
 
 业务来源以 `name` 区分，例如 AAPI、UAPI、MAPI、CBGame、KeyHub。按实际日志映射 `fields.level`、`fields.exception`、`fields.dependency` 和 `fields.businesscode`。其中 `businesscode` 仅映射在业务请求失败时出现的分类字段。配置 `rules.backend_warnings` 或 `rules.business_errors` 为正整数后启用各自规则，比较窗口计数与历史基线。
 
@@ -52,8 +50,6 @@ API 沿用看板认证。路由写接口还需 `X-Alert-Settings-Password`。保
 - 统一文本与嵌套数据脱敏、扩展 AI 根因与历史相关性、跨源综合报告和报告重发、Telegram 恢复与周报、独立通知服务。
 - 多用户 RBAC、完整新增菜单、systemd／Helm 发布及完整生产规模集成测试。
 
-当前的 CloudWatch 和 Kubernetes 检查只覆盖一个只读端点。监控凭据、租户路由、集群 CA 以及实际数据规模，在目标环境上线前需验证。
-
 ## 验证
 
-本地验证包含 `go test ./...`、`go vet ./...`、Go 服务编译与 JavaScript 语法检查。测试覆盖路由权限、无效表达式、空覆盖与回退、监控只读端点以及报告数据缺失与 HTML 转义。启动临时 PostgreSQL 测试容器时，云端 Docker 存储空间不足。真实 PostgreSQL 迁移与完整 Compose 集成测试需要在有可用空间的测试环境运行。
+本地验证包含 `go test ./...`、`go vet ./...`、Go 服务编译与 JavaScript 语法检查。测试覆盖路由权限、无效表达式、空覆盖与回退、Elasticsearch 只读聚合以及报告数据缺失与 HTML 转义。启动临时 PostgreSQL 测试容器时，云端 Docker 存储空间不足。真实 PostgreSQL 迁移与完整 Compose 集成测试需要在有可用空间的测试环境运行。

@@ -70,9 +70,6 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 			mountRoutes(mux, access.Current, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
 		}
 	}
-	if access.MetricsLink != nil {
-		mountMetricsLink(mux, access.MetricsLink, protected)
-	}
 	static := protected(http.FileServer(http.FS(files)))
 	for _, route := range []string{"GET /{$}", "GET /app.css", "GET /app.js"} {
 		mux.HandleFunc(route, static)
@@ -99,11 +96,10 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(struct {
 			store.Dashboard
-			Sources      []string  `json:"sources"`
-			Updated      time.Time `json:"updated"`
-			Kind         string    `json:"kind"`
-			MetricsLinks bool      `json:"metrics_links"`
-		}{data, sources, updated, filters.kind, access.MetricsLink != nil})
+			Sources []string  `json:"sources"`
+			Updated time.Time `json:"updated"`
+			Kind    string    `json:"kind"`
+		}{data, sources, updated, filters.kind})
 	})))
 	mountEvents := func(route string, query func(context.Context, string, string, time.Time, int) (store.BackendLogs, error)) {
 		mux.HandleFunc(route, protected(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -123,10 +119,9 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(struct {
 				store.BackendLogs
-				Updated      time.Time `json:"updated"`
-				Kind         string    `json:"kind"`
-				MetricsLinks bool      `json:"metrics_links"`
-			}{data, updated, filters.kind, access.MetricsLink != nil})
+				Updated time.Time `json:"updated"`
+				Kind    string    `json:"kind"`
+			}{data, updated, filters.kind})
 		})))
 	}
 	mountEvents("GET /api/backend-logs", reader.BackendLogs)

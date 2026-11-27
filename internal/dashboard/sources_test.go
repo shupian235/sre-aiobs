@@ -19,15 +19,14 @@ func TestSourcesUseOnlyConfiguredTargets(t *testing.T) {
 	calls := 0
 	client := &http.Client{Transport: checkTransport(func(r *http.Request) (*http.Response, error) {
 		calls++
-		if r.URL.Host != "loki.example.test" || r.URL.Path != "/loki/api/v1/query" ||
-			r.URL.Query().Get("query") != `sum(count_over_time({app="orders"} [1m]))` ||
-			r.Header.Get("Authorization") != "Bearer fixture-secret" || r.Header.Get("X-Scope-OrgID") != "test-tenant" {
+		if r.URL.Host != "elasticsearch.example.test" || r.Method != http.MethodPost || r.URL.Path != "/orders-*/_search" ||
+			r.Header.Get("Authorization") != "ApiKey fixture-secret" {
 			t.Error("unexpected probe request")
 		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"status":"success","data":{"result":[{"metric":{},"value":[0,"14"]}]}}`))}, nil
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"hits":{"total":{"value":14}}}`))}, nil
 	})}
-	settings := []config.Source{{Name: "orders", Kind: "loki", Environment: "test", URL: "https://loki.example.test",
-		CredentialEnv: "TEST_SOURCE_TOKEN", Tenant: "test-tenant", Selector: `{app="orders"}`, Fields: map[string]string{"level": "level"}}}
+	settings := []config.Source{{Name: "orders", Kind: "elasticsearch", Environment: "test", URL: "https://elasticsearch.example.test",
+		CredentialEnv: "TEST_SOURCE_TOKEN", Index: "orders-*", Fields: map[string]string{"level": "level", "timestamp": "@timestamp"}}}
 	mux := http.NewServeMux()
 	Mount(mux, &fixtureReader{}, "test", SourceAccess{Current: func() []config.Source { return settings }, HTTP: client})
 	perform := func(method, path string, auth, header bool) *httptest.ResponseRecorder {
@@ -45,7 +44,7 @@ func TestSourcesUseOnlyConfiguredTargets(t *testing.T) {
 	if r := perform("GET", "/api/sources", false, false); r.Code != 401 {
 		t.Fatalf("unauthenticated list: %d", r.Code)
 	}
-	if r := perform("GET", "/api/sources", true, false); r.Code != 200 || !strings.Contains(r.Body.String(), `"backend":true`) || strings.Contains(r.Body.String(), "loki.example.test") || strings.Contains(r.Body.String(), "fixture-secret") {
+	if r := perform("GET", "/api/sources", true, false); r.Code != 200 || !strings.Contains(r.Body.String(), `"backend":true`) || strings.Contains(r.Body.String(), "elasticsearch.example.test") || strings.Contains(r.Body.String(), "fixture-secret") {
 		t.Fatalf("list response: %d %s", r.Code, r.Body)
 	}
 	if r := perform("POST", "/api/sources/unknown/check", true, true); r.Code != 404 {

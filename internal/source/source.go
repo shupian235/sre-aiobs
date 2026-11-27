@@ -7,12 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/netip"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -44,18 +41,11 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 		return errors.New("invalid source request")
 	}
 	if secret := os.Getenv(c.Config.CredentialEnv); secret != "" {
-		scheme := "Bearer"
 		if c.Config.Username != "" {
 			req.SetBasicAuth(c.Config.Username, secret)
 		} else {
-			if c.Config.Kind == "elasticsearch" {
-				scheme = "ApiKey"
-			}
-			req.Header.Set("Authorization", scheme+" "+secret)
+			req.Header.Set("Authorization", "ApiKey "+secret)
 		}
-	}
-	if c.Config.Tenant != "" {
-		req.Header.Set("X-Scope-OrgID", c.Config.Tenant)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTP.Do(req)
@@ -66,7 +56,7 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 		if errors.Is(err, context.Canceled) {
 			return context.Canceled
 		}
-		// Transport errors can contain the full upstream URL and LogQL selector.
+		// Transport errors can contain the full upstream URL.
 		return errors.New("source transport failed")
 	}
 	defer resp.Body.Close()
@@ -79,9 +69,6 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 }
 
 func (c Client) Aggregate(ctx context.Context, w platform.Window) (platform.Snapshot, error) {
-	if c.Config.Kind == "loki" {
-		return c.loki(ctx, w)
-	}
 	return c.elastic(ctx, w)
 }
 
@@ -210,124 +197,9 @@ func (c Client) elasticWindow(ctx context.Context, path string, query any, laten
 	return totals.Hits.Total.Value, overall, nil
 }
 
-func (c Client) loki(ctx context.Context, w platform.Window) (platform.Snapshot, error) {
-	result := platform.Snapshot{Latency: map[string]map[string]float64{}}
-	duration := w.End.Sub(w.Start).String()
-	evaluate := func(query string, consume func(map[string]string, float64)) error {
-		return c.lokiMetric(ctx, w, query, consume)
-	}
-	if err := evaluate(fmt.Sprintf("sum(count_over_time(%s [%s]))", c.Config.Selector, duration), func(_ map[string]string, v float64) { result.Total = int64(v) }); err != nil {
-		return result, err
-	}
-	for _, dimension := range dimensions {
-		fields := []string{}
-		for _, name := range strings.Split(dimension, "_") {
-			if f := c.Config.Fields[name]; f != "" {
-				fields = append(fields, f)
-			}
-		}
-		if len(fields) != len(strings.Split(dimension, "_")) {
-			continue
-		}
-		query := fmt.Sprintf("sum by (%s) (count_over_time(%s | json | __error__=\"\" [%s]))", strings.Join(fields, ","), c.Config.Selector, duration)
-		// Extract only the mapped backend classification from the JSON record.
-		switch dimension {
-		case "level", "exception", "dependency", "businesscode", "vulnerability":
-			query = fmt.Sprintf("sum by (sre_aiobs_classification) (count_over_time(%s | json sre_aiobs_classification=%q | __error__=\"\" [%s]))", c.Config.Selector, fields[0], duration)
-			fields = []string{"sre_aiobs_classification"}
-		}
-		if err := evaluate(query, func(m map[string]string, v float64) {
-			values := []string{}
-			for _, field := range fields {
-				if m[field] == "" {
-					return
-				}
-				values = append(values, m[field])
-			}
-			result.Buckets = append(result.Buckets, platform.Bucket{Dimension: dimension, Value: strings.Join(values, "\x00"), Count: int64(v)})
-		}); err != nil {
-			return result, err
-		}
-	}
-	uri, latency := c.Config.Fields["uri"], c.Config.Fields["latency"]
-	if latency != "" {
-		result.OverallLatency = map[string]float64{}
-		for _, p := range []string{"50", "90", "95", "99"} {
-			// Empty grouping combines all matching streams before calculating the percentile.
-			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by ()", p, c.Config.Selector, latency, duration)
-			samples := 0
-			if err := evaluate(query, func(_ map[string]string, v float64) {
-				samples++
-				if v >= 0 {
-					result.OverallLatency[p+".0"] = v
-				}
-			}); err != nil {
-				return result, err
-			}
-			if samples > 1 {
-				return result, fmt.Errorf("Loki returned multiple window latency aggregates")
-			}
-		}
-	}
-
-	if uri != "" && latency != "" {
-		for _, p := range []string{"50", "90", "95", "99"} {
-			query := fmt.Sprintf("quantile_over_time(0.%s, %s | json | unwrap %s | __error__=\"\" [%s]) by (%s)", p, c.Config.Selector, latency, duration, uri)
-			if err := evaluate(query, func(m map[string]string, v float64) {
-				if result.Latency[m[uri]] == nil {
-					result.Latency[m[uri]] = map[string]float64{}
-				}
-				result.Latency[m[uri]][p+".0"] = v
-			}); err != nil {
-				return result, err
-			}
-		}
-	}
-	return result, nil
-}
-
-func (c Client) lokiMetric(ctx context.Context, w platform.Window, query string, consume func(map[string]string, float64)) error {
-	q := url.Values{"query": {query}, "time": {strconv.FormatInt(w.End.Add(-time.Nanosecond).UnixNano(), 10)}}
-	var r struct {
-		Status string
-		Data   struct {
-			Result []struct {
-				Metric map[string]string
-				Value  []json.RawMessage
-			}
-		}
-	}
-	if err := c.request(ctx, "GET", "/loki/api/v1/query?"+q.Encode(), nil, &r); err != nil {
-		return err
-	}
-	if r.Status != "success" {
-		return fmt.Errorf("Loki query failed")
-	}
-	for _, row := range r.Data.Result {
-		var raw string
-		if len(row.Value) != 2 || json.Unmarshal(row.Value[1], &raw) != nil {
-			return fmt.Errorf("invalid Loki sample")
-		}
-		number, err := strconv.ParseFloat(raw, 64)
-		if err != nil {
-			return err
-		}
-		if !math.IsNaN(number) && !math.IsInf(number, 0) {
-			consume(row.Metric, number)
-		}
-	}
-	return nil
-}
-
 // Check uses the same credentials, filter and read-only aggregate endpoint as the scheduler.
 func (c Client) Check(ctx context.Context, end time.Time) (int64, error) {
 	w := platform.Window{Start: end.Add(-time.Minute), End: end}
-	if c.Config.Kind == "loki" {
-		var total int64
-		query := fmt.Sprintf("sum(count_over_time(%s [1m]))", c.Config.Selector)
-		err := c.lokiMetric(ctx, w, query, func(_ map[string]string, v float64) { total = int64(v) })
-		return total, err
-	}
 	query := map[string]any{"range": map[string]any{c.Config.Fields["timestamp"]: map[string]any{"gte": w.Start, "lt": w.End}}}
 	total, _, err := c.elasticWindow(ctx, "/"+c.Config.Index+"/_search?allow_partial_search_results=false", query, "")
 	return total, err

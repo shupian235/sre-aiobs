@@ -54,7 +54,7 @@ function rows(body, records, columns, render) {
   }
 }
 
-function showDetail(record,metricsLinks) {
+function showDetail(record) {
   const {event,analysis} = record;
   byId("detail-title").textContent = labels.get(event.Rule) || event.Rule;
   const fields = event.Rule==="scanner_vulnerability" ? [
@@ -69,9 +69,9 @@ function showDetail(record,metricsLinks) {
   for (const [name,value] of fields) list.append(element("dt",name),element("dd",value || "—"));
   const content = byId("detail-content");
   content.replaceChildren(list);
-  if (metricsLinks && /^[0-9a-f]{32}$/.test(record.id)) {
-    const link=element("a","查看窗口指标","detail-link");
-    link.href="/api/metrics-link/"+encodeURIComponent(record.id);
+  if (/^[0-9a-f]{32}$/.test(record.id)) {
+    const link=element("a","查看巡检报告","detail-link");
+    link.href="/api/reports/"+encodeURIComponent(record.id);
     link.target="_blank";
     link.rel="noopener noreferrer";
     content.append(link);
@@ -172,7 +172,7 @@ function render(data) {
 
   rows(byId("event-body"),data.events,7,item => {
     const event=item.event;
-    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),locationLabel(event),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)];
+    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),locationLabel(event),item.source,date.format(new Date(item.at)),detailButton(item)];
   });
   rows(byId("task-body"),data.tasks,5,item=>{
     const report=element("a",item.id,"mono");
@@ -187,10 +187,10 @@ function riskRating(score) {
   return element("span",String(score),"pill "+(score>=80?"high":score>=65?"medium":""));
 }
 
-function detailButton(item,metricsLinks) {
+function detailButton(item) {
   const button=element("button","查看","detail-link");
   button.type="button";
-  button.addEventListener("click",()=>showDetail(item,metricsLinks));
+  button.addEventListener("click",()=>showDetail(item));
   return button;
 }
 
@@ -200,7 +200,7 @@ function renderVulnerabilities(data) {
     ? `共 ${total} 条发现，显示最近 ${data.events.length} 条。` : `共 ${total} 条发现。`;
   rows(byId("vulnerability-body"),data.events,5,item=>[
     element("span",item.event.Target,"mono"),number.format(item.event.Count),
-    item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
+    item.source,date.format(new Date(item.at)),detailButton(item)
   ]);
 }
 
@@ -221,7 +221,7 @@ function renderNginxRoutes(data) {
   byId("nginx-status").textContent=`共 ${number.format(data.total)} 条事件，显示最近 ${data.events.length} 条。`;
   rows(byId("nginx-body"),data.events,9,item=>[
     element("span",item.event.Target||"—","mono"),labels.get(item.event.Rule)||item.event.Rule,
-    riskRating(item.score),element("span",item.event.IP||"—","mono"),locationLabel(item.event),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item,data.metrics_links)
+    riskRating(item.score),element("span",item.event.IP||"—","mono"),locationLabel(item.event),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item)
   ]);
 }
 
@@ -249,7 +249,7 @@ async function checkSource(name,button,status) {
     if (!response.ok) throw new Error(String(response.status));
     const result=await response.json();
     status.textContent=result.status==="ok"
-      ? (result.count===undefined?`连接正常 · ${result.duration_ms} ms`:`可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`)
+      ? `可查询 · 过去 1 分钟 ${number.format(result.count)} 条 · ${result.duration_ms} ms`
       : (codes[result.code]||"查询失败");
   } catch(error) {
     status.textContent=error.message==="429"?"检查繁忙，请稍后重试。":"无法完成检查。";
@@ -270,7 +270,7 @@ function renderSources(sources) {
     check.addEventListener("click",()=>checkSource(source.name,check,status));
     cell.append(check,status);
     const capabilities=[source.backend?"后端日志":"",source.vulnerabilities?"漏洞扫描":""].filter(Boolean);
-    return [source.name,({loki:"Loki",elasticsearch:"Elasticsearch",prometheus:"Prometheus",victoriametrics:"VictoriaMetrics",kubernetes:"Kubernetes",cloudwatch:"AWS CloudWatch"}[source.kind]||source.kind),source.environment,capabilities.join("、")||"—",cell];
+    return [source.name,"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
   });
 }
 
