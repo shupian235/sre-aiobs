@@ -1,0 +1,47 @@
+listen: ":8080"
+sources:
+  - name: nginx-prod
+    kind: elasticsearch
+    environment: production
+    url: https://elasticsearch.example.net:9200
+    credential_env: ELASTICSEARCH_API_KEY
+    index: nginx-access-*
+    hosts: [www.example.net]
+    routes:
+      - label: /admin
+        pattern: '^/admin(?:/|$)'
+    fields:
+      timestamp: "@timestamp"
+      ip: client.ip
+      uri: url.original.keyword
+      host: url.domain.keyword
+      ua: user_agent.original.keyword
+      status: http.response.status_code
+      latency: nginx.request_time
+  - name: nginx-staging
+    kind: loki
+    environment: staging
+    url: https://loki.example.net
+    credential_env: LOKI_TOKEN
+    tenant: staging
+    selector: '{app="nginx"}'
+    fields: {ip: client_ip, uri: request_uri, host: host, ua: user_agent, status: status, latency: request_time}
+rules:
+  ip: 1000
+  uri: 2000
+  errors: 100
+  backend_errors: 20
+  dependency_errors: 5
+  latency: 1
+  baseline_multiplier: 3
+  sensitive: ['(?i)^/(admin|\.git|\.env)(/|$)']
+  user_agents: ['(?i)sqlmap|nikto|masscan']
+ai:
+  provider: ""
+  model: ""
+  daily_requests: 100
+  timeout: 15s
+# geo_db: /etc/sre-aiobs/geo/GeoLite2-City.mmdb
+# telegram_chat: "-1001234567890"
+# email_from: security@example.net
+# email_to: [sre@example.net]

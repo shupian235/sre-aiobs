@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>安全概览 · SRE AIObs</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><span class="mark" aria-hidden="true">◈</span><div><strong>SRE AIObs</strong><small>LOG OPERATIONS</small></div></div>
+  <nav aria-label="看板导航">
+    <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
+    <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
+    <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
+    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 风险接口</a>
+    <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
+    <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
+    <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
+  </nav>
+  <div class="sidefoot"><span class="side-dot"></span>安全运维控制台</div>
+</aside>
+<main id="overview">
+  <header class="top"><div class="breadcrumb">安全运营 <span>/</span> 安全概览</div><div class="connection"><i></i><span id="connection">连接中</span></div></header>
+  <div class="content">
+    <section class="intro"><div><h1>安全概览</h1><p>查看 Nginx 流量、后端日志事件与探测任务。</p></div><button id="refresh" type="button"><span aria-hidden="true">⟳</span> 刷新</button></section>
+    <form class="filters" aria-label="数据筛选"><label>数据源<select id="source"><option value="">全部数据源</option></select></label><label>时间范围<select id="hours"><option value="1">最近 1 小时</option><option value="6">最近 6 小时</option><option value="24" selected>最近 24 小时</option><option value="168">最近 7 天</option></select></label><span id="last" role="status"></span></form>
+    <p id="error" role="alert" hidden></p>
+    <section class="metrics" aria-label="汇总指标">
+      <article><div><span class="badge blue">≋</span>聚合请求量</div><strong id="requests">—</strong><small>当前窗口内的日志条数</small></article>
+      <article><div><span class="badge coral">◇</span>高风险事件</div><strong id="alerts">—</strong><small>风险评分 ≥ 80</small></article>
+      <article><div><span class="badge violet">▤</span>探测任务</div><strong id="runs">—</strong><small>当前窗口内的任务数</small></article>
+      <article><div><span class="badge amber">!</span>失败任务</div><strong id="failed">—</strong><small>当前处于失败状态</small></article>
+    </section>
+    <div class="graphs">
+      <section class="panel"><div class="panel-head"><div><h2>请求趋势</h2><p id="interval">聚合窗口请求量</p></div><span class="legend"><i></i>请求量</span></div><canvas id="trend" aria-label="请求趋势图" role="img"></canvas><p id="trend-empty" class="empty" hidden>当前筛选范围内暂无请求数据。</p></section>
+      <section class="panel"><div class="panel-head"><div><h2>风险规则分布</h2><p>按命中次数排序</p></div></div><div id="rules"></div></section>
+    </div>
+    <section id="events" class="panel listing"><div class="panel-head"><div><h2>风险事件</h2><p>最近 100 条符合筛选条件的记录</p></div><label class="sr" for="score">风险级别</label><select id="score"><option value="0">所有风险</option><option value="65">评分 ≥ 65</option><option value="80">评分 ≥ 80</option></select></div>
+      <div class="table-wrap"><table><thead><tr><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>数据源</th><th>出现时间</th><th>详情</th></tr></thead><tbody id="event-body"></tbody></table></div>
+    </section>
+    <section id="sources" class="panel listing">
+      <div class="panel-head"><div><h2>日志数据源</h2><p id="source-status" role="status">正在加载配置…</p></div></div>
+      <p class="source-hint">应用日志已进入 Loki 或 Elasticsearch 时，可直接接入。「检查」显示最近 1 分钟的匹配日志量。</p>
+      <div class="table-wrap"><table><thead><tr><th>数据源</th><th>类型</th><th>环境</th><th>探测能力</th><th>连通性</th></tr></thead><tbody id="source-body"></tbody></table></div>
+    </section>
+    <section id="nginx-routes" class="panel listing">
+      <div class="panel-head"><div><h2>Nginx 风险接口</h2><p id="nginx-status" role="status">正在加载接口事件…</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>接口</th><th>检测规则</th><th>风险评分</th><th>命中请求数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
+    </section>
+    <section id="vulnerability-findings" class="panel listing">
+      <div class="panel-head"><div><h2>漏洞检测</h2><p id="vulnerability-status" role="status">正在加载漏洞发现…</p></div></div>
+      <p class="source-hint">可信扫描源报告的 CVE 会汇总进邮件小时报告和日报。<a href="#alert-settings">邮件设置</a></p>
+      <div class="table-wrap"><table><thead><tr><th>CVE</th><th>扫描记录数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="vulnerability-body"></tbody></table></div>
+    </section>
+    <section id="alert-settings" class="panel listing">
+      <div class="panel-head"><div><h2>告警设置</h2><p>分钟任务使用评分和冷却设置发送实时告警。</p></div></div>
+      <div class="channel-setup" aria-label="通知渠道配置">
+        <a class="channel-button" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">配置 Telegram 机器人</a>
+        <a class="channel-button" href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">配置 Slack Webhook</a>
+        <p>Telegram：用 <code>/newbot</code> 创建机器人，注入 <code>TELEGRAM_BOT_TOKEN</code>，并在 YAML 填写 <code>telegram_chat</code>。</p>
+        <p>Slack：启用 Incoming Webhooks，选择接收频道，再注入 <code>SLACK_WEBHOOK_URL</code>。</p>
+      </div>
+      <form id="alert-form" autocomplete="off">
+        <fieldset id="alert-fields" disabled>
+          <div class="alert-fields"><label>最低风险评分<input id="minimum-score" type="number" min="1" max="100" required></label>
+            <label>冷却时间（分钟）<input id="cooldown-minutes" type="number" min="1" max="1440" required></label></div>
+          <div class="alert-channels">
+            <label><input id="alert-slack" type="checkbox">Slack 实时告警 <small id="slack-state"></small></label>
+            <label><input id="alert-telegram" type="checkbox">Telegram 实时告警</label>
+            <label><input id="alert-email" type="checkbox">邮件小时报告与日报</label>
+          </div>
+        </fieldset>
+        <div id="alert-actions" hidden><label>告警管理密码 <input id="alert-password" type="password" required></label><button id="alert-save" type="submit">保存设置</button></div>
+        <p id="alert-status" role="status">加载设置中…</p>
+      </form>
+    </section>
+    <section id="tasks" class="panel listing"><div class="panel-head"><div><h2>任务记录</h2><p>最近 100 条探测任务</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>数据源</th><th>状态</th><th>窗口结束时间</th><th>尝试次数</th><th>Run ID</th></tr></thead><tbody id="task-body"></tbody></table></div>
+    </section>
+  </div>
+</main>
+</div>
+<dialog id="detail"><div class="panel-head"><h2 id="detail-title">事件详情</h2><form method="dialog"><button aria-label="关闭详情">关闭</button></form></div><div id="detail-content"></div></dialog>
+</body>
+</html>

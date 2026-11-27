@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aiobs
+      POSTGRES_USER: aiobs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiobs -d aiobs"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    command: ["/bin/sh", "-ec", 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep PONG']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    image: sre-aiobs:local
+    build: .
+    command: ["-migrate", "/migrations"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    depends_on:
+      postgres: {condition: service_healthy}
+  app:
+    image: sre-aiobs:local
+    build: .
+    command: ["-config", "/etc/sre-aiobs/config.yaml"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:?set REDIS_URL}
+      ELASTICSEARCH_API_KEY:
+      LOKI_TOKEN:
+      OPENAI_API_KEY:
+      ANTHROPIC_API_KEY:
+      ALERT_SETTINGS_PASSWORD:
+      DASHBOARD_PASSWORD:
+      SLACK_WEBHOOK_URL:
+      TELEGRAM_BOT_TOKEN:
+      AWS_REGION:
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      AWS_SESSION_TOKEN:
+    volumes:
+      - ${AIOBS_CONFIG:-./config.example.yaml}:/etc/sre-aiobs/config.yaml:ro
+    ports: ["127.0.0.1:${AIOBS_PORT:-8080}:8080"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+volumes:
+  pgdata:
+  redisdata:

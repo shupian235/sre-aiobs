@@ -1,0 +1,12 @@
+{
+  "title": "SRE AIObs",
+  "uid": "sre-aiobs",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {"list": [{"name": "prometheus", "type": "datasource", "query": "prometheus"}]},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "任务速率", "datasource": {"type":"prometheus","uid":"${prometheus}"}, "gridPos": {"x":0,"y":0,"w":12,"h":8}, "targets":[{"refId":"A","expr":"sum(rate(sre_aiobs_runs_total[5m]))"}]},
+    {"id": 2, "type": "timeseries", "title": "失败任务与 AI 调用", "datasource": {"type":"prometheus","uid":"${prometheus}"}, "gridPos": {"x":12,"y":0,"w":12,"h":8}, "targets":[{"refId":"A","expr":"sum(increase(sre_aiobs_run_failures_total[15m]))","legendFormat":"任务"},{"refId":"B","expr":"sum(increase(sre_aiobs_ai_failures_total[15m]))","legendFormat":"AI"}]}
+  ]
+}

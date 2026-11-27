@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sre-aiobs-migrate-002
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: registry.example.net/sre-aiobs:1.0.0
+          args: ["-migrate", "/migrations"]
+          envFrom:
+            - secretRef:
+                name: sre-aiobs-migration-env
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-aiobs
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: sre-aiobs}
+  template:
+    metadata:
+      labels: {app: sre-aiobs}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sre-aiobs
+          image: registry.example.net/sre-aiobs:1.0.0
+          args: ["-config", "/etc/sre-aiobs/config.yaml"]
+          envFrom:
+            - secretRef:
+                name: sre-aiobs-env
+          ports:
+            - {name: http, containerPort: 8080}
+          volumeMounts:
+            - {name: config, mountPath: /etc/sre-aiobs, readOnly: true}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+      volumes:
+        - name: config
+          configMap:
+            name: sre-aiobs-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sre-aiobs
+spec:
+  selector: {app: sre-aiobs}
+  ports:
+    - {name: http, port: 8080, targetPort: http}

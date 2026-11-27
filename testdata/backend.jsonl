@@ -1,0 +1,4 @@
+{"level":"info","service":"orders","message":"request completed"}
+{"level":"error","service":"orders","exception_type":"UnhandledOrderError"}
+{"level":"error","service":"orders","dependency_failure":"payments_timeout"}
+{"level":"fatal","service":"orders","message":"worker stopped"}
