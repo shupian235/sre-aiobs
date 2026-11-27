@@ -62,7 +62,7 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 		mountReports(mux, backend, protected)
 	}
 	if backend, ok := reader.(alertStore); ok {
-		mountAlerts(mux, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"))
+		mountAlerts(mux, backend, protected, os.Getenv("ALERT_SETTINGS_PASSWORD"), access.AlertDestinations)
 	}
 	if access.Current != nil {
 		mountSources(mux, access, protected)

@@ -49,6 +49,7 @@
     </section>
     <section id="nginx-routes" class="panel listing">
       <div class="panel-head"><div><h2>Nginx 安全巡检</h2><p id="nginx-status" role="status">正在加载巡检事件…</p></div></div>
+      <p class="source-hint">接入访问日志或 WAF 安全索引后自动巡检。可按顶部的数据源、时间和风险评分筛选。</p>
       <div class="table-wrap"><table><thead><tr><th>接口或类别</th><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>国家 / 地区</th><th>命中数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
     </section>
     <section id="vulnerability-findings" class="panel listing">
@@ -57,12 +58,13 @@
       <div class="table-wrap"><table><thead><tr><th>CVE</th><th>扫描记录数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="vulnerability-body"></tbody></table></div>
     </section>
     <section id="alert-settings" class="panel listing">
-      <div class="panel-head"><div><h2>告警设置</h2><p>分钟任务使用评分和冷却设置发送实时告警。</p></div></div>
+      <div class="panel-head"><div><h2>告警设置</h2><p>实时告警按风险评分与冷却时间发送。通道凭据在部署端配置。</p></div></div>
       <div class="channel-setup" aria-label="通知渠道配置">
         <a class="channel-button" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">配置 Telegram 机器人</a>
         <a class="channel-button" href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">配置 Slack Webhook</a>
         <p>Telegram：用 <code>/newbot</code> 创建机器人，注入 <code>TELEGRAM_BOT_TOKEN</code>，并在 YAML 填写 <code>telegram_chat</code>。</p>
         <p>Slack：启用 Incoming Webhooks，选择接收频道，再注入 <code>SLACK_WEBHOOK_URL</code>。</p>
+        <p>邮件：在 YAML 填写 <code>email_from</code> 和 <code>email_to</code>，并为部署配置 AWS SES 地区及发送权限。</p>
       </div>
       <form id="alert-form" autocomplete="off">
         <fieldset id="alert-fields" disabled>
@@ -70,8 +72,8 @@
             <label>冷却时间（分钟）<input id="cooldown-minutes" type="number" min="1" max="1440" required></label></div>
           <div class="alert-channels">
             <label><input id="alert-slack" type="checkbox">Slack 实时告警 <small id="slack-state"></small></label>
-            <label><input id="alert-telegram" type="checkbox">Telegram 实时告警</label>
-            <label><input id="alert-email" type="checkbox">邮件小时报告与日报</label>
+            <label><input id="alert-telegram" type="checkbox">Telegram 实时告警 <small id="telegram-state"></small></label>
+            <label><input id="alert-email" type="checkbox">邮件小时报告与日报 <small id="email-state"></small></label>
           </div>
         </fieldset>
         <div id="alert-actions" hidden><label>告警管理密码 <input id="alert-password" type="password" required></label><button id="alert-save" type="submit">保存设置</button></div>

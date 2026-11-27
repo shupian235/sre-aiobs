@@ -19,7 +19,7 @@ type alertStore interface {
 	SaveAlertSettings(context.Context, platform.AlertSettings) error
 }
 
-func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string) {
+func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string, destinations func() (telegram, email bool)) {
 	expected := sha256.Sum256([]byte(adminPassword))
 	const route = "/api/alert-settings"
 	mux.HandleFunc("GET "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,12 +30,18 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 			http.Error(w, "Alert settings unavailable", 503)
 			return
 		}
+		var telegram, email bool
+		if destinations != nil {
+			telegram, email = destinations()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(struct {
 			platform.AlertSettings
-			SlackConfigured bool `json:"slack_configured"`
-			Editable        bool `json:"editable"`
-		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", adminPassword != ""})
+			SlackConfigured    bool `json:"slack_configured"`
+			TelegramConfigured bool `json:"telegram_configured"`
+			EmailConfigured    bool `json:"email_configured"`
+			Editable           bool `json:"editable"`
+		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", telegram && os.Getenv("TELEGRAM_BOT_TOKEN") != "", email, adminPassword != ""})
 	})))
 	mux.HandleFunc("PUT "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		supplied := sha256.Sum256([]byte(r.Header.Get("X-Alert-Settings-Password")))

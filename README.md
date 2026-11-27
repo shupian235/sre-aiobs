@@ -36,6 +36,12 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 
 Kibana 在首次启动时导入 Nginx Access、地理分布和安全巡检看板。已有 Elasticsearch 时，可通过 [部署手册](docs/deployment.md#日志源) 配置只读账号和索引。多机采集通过 [Ansible 与内网 HTTPS 网关](docs/deployment.md#elasticsearch-与-nginx-批量采集) 接入。已有配置升级请先检查 [迁移步骤](docs/update-and-configuration.md#部署升级)。
 
+## Web 管理
+
+[Web 登录、Nginx 安全巡检和告警配置](docs/web-operations.md)包含实际入口、配置项和操作步骤。
+
+![Web 告警设置示意](docs/preview/images/web-alert-settings.png)
+
 ## 巡检与报告
 
 - **Nginx 安全巡检**支持 IP、URI、Host、User-Agent、状态码、GeoIP 和历史基线。事件详情可打开对应 Run ID 的报告。

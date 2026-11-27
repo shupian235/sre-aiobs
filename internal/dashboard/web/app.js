@@ -344,6 +344,8 @@ async function loadAlertSettings() {
     byId("cooldown-minutes").value=settings.cooldown_minutes;
     for (const key of ["slack","telegram","email"]) byId("alert-"+key).checked=settings[key];
     byId("slack-state").textContent=settings.slack_configured?"· 已注入 Webhook":"· 未配置 Webhook";
+    byId("telegram-state").textContent=settings.telegram_configured?"· 已配置机器人与会话":"· 缺少机器人或会话";
+    byId("email-state").textContent=settings.email_configured?"· 已填发件人与收件人":"· 缺少发件人或收件人";
     byId("alert-fields").disabled=!settings.editable;
     byId("alert-actions").hidden=!settings.editable;
     status.textContent=settings.editable?"保存后应用于后续告警任务。":"请配置告警管理密码以启用修改。";

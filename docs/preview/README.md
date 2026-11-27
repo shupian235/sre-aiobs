@@ -33,6 +33,8 @@
 
 ## 自动巡检与运维
 
+[Web 登录、Nginx 安全巡检与告警配置](../web-operations.md)
+
 ![Google Authenticator 双重验证登录](images/totp-login.png)
 
 ![Elasticsearch 只读连接检查](images/source-management.png)
@@ -44,5 +46,7 @@
 ![通过 Run ID 追踪异常](images/incident-investigation.png)
 
 ![巡检报告和下载格式](images/inspection-report.png)
+
+![Web 告警设置](images/web-alert-settings.png)
 
 ![漏洞发现与通知](images/vulnerability-alerts.png)

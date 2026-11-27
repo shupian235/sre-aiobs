@@ -163,7 +163,11 @@ func run() error {
 	activeConfig.Store(&initial)
 	access := dashboard.SourceAccess{
 		Current: func() []config.Source { return activeConfig.Load().Sources },
-		HTTP:    client,
+		AlertDestinations: func() (bool, bool) {
+			current := activeConfig.Load()
+			return current.TelegramChat != "", current.EmailFrom != "" && len(current.EmailTo) > 0
+		},
+		HTTP: client,
 	}
 	dashboardPassword := os.Getenv("DASHBOARD_PASSWORD")
 	login, err := dashboard.NewLogin(os.Getenv("DASHBOARD_TOTP_SECRET"), dashboardPassword, cache)
