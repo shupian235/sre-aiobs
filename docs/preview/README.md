@@ -10,7 +10,6 @@
 | Nginx 风险接口 | 按来源、时间和评分查找风险接口，查看巡检规则及命中次数 |
 | 漏洞检测 | 按数据源查看聚合后的 CVE；由现有扫描器提供结果 |
 | 日志数据源 | 检查六类数据源的连接；日志源额外显示最近一分钟匹配条数 |
-| 路由配置 | 按数据源维护有序路由规则，支持恢复 YAML 默认规则 |
 | 历史报告 | 从任务记录打开 HTML 预览并下载 HTML、JSON 或 Markdown |
 | 登录 | 可选启用 Google Authenticator 六位动态码 |
 | 告警设置 | 管理告警阈值、冷却时间和投递开关。Slack、Telegram、SES 凭据在部署端注入 |
@@ -18,8 +17,6 @@
 ![Google Authenticator 双重验证登录](images/totp-login.png)
 
 ![只读数据源连接检查](images/source-management.png)
-
-![Nginx 路由规则编辑](images/route-settings.png)
 
 ![Nginx 风险接口](images/nginx-risk.png)
 

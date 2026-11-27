@@ -5,7 +5,7 @@
 | 模块 | 已有能力 | 本阶段新增 |
 | --- | --- | --- |
 | 日志与数据源 | Elasticsearch Composite 分页、Loki 聚合、各源只读连接检查 | Prometheus、VictoriaMetrics、CloudWatch、Kubernetes 的统一只读连接检查 |
-| Nginx 巡检 | IP、URI、Host、UA、状态码、敏感路径、动态基线、事件关联与地区 | 按来源在界面添加、排序、删除路由规则，保存至 PostgreSQL |
+| Nginx 巡检 | IP、URI、Host、UA、状态码、敏感路径、动态基线、事件关联与地区 | 按来源自动应用已保存的路由规则或 YAML 默认规则 |
 | 后端业务 | 严重错误、异常类型、依赖故障，按日志来源组织 | 可选 WARN 激增和业务错误码激增，业务标识对外使用哈希 |
 | 性能 | 聚合请求量、QPS、分位数与 Grafana | Elasticsearch、Loki 与 VictoriaMetrics 增加 P90，和其他分位数一同展示 |
 | 执行与报告 | Go 定时任务、Run ID、分布式锁、任务重试、审计、OpenAI／Claude、Telegram／Slack／SES、HTML 邮件 | 任务记录可直接预览与下载历史报告，显示独立的通知投递状态 |
@@ -14,7 +14,7 @@
 
 - `migrations/003_source_routes.sql` 创建 `source_route_settings`，每个数据源保存一个有序 JSONB 数组。无记录时继承 YAML；空数组显式禁用映射。
 - `internal/store/routes.go` 在同一事务中保存或清除覆盖项并写入 `audit_logs`。
-- `internal/dashboard` 增加路由设置 API、界面以及统一数据源检查；`internal/worker` 在解析新风险事件前读取对应来源的覆盖项。
+- `internal/dashboard` 提供兼容已有调用的路由设置 API 和统一数据源检查；`internal/worker` 在解析新风险事件前读取对应来源的覆盖项。
 - `internal/store/report.go` 和 `internal/dashboard/reports.go` 从现有数据表只读生成历史报告，无需新建报告表。
 - `internal/source`、`internal/detect`、`internal/metrics` 与 `deploy/grafana/dashboard.json` 增加只读监控检查、规则与分位数。
 - 完整 YAML 从 [config.example.yaml](../config.example.yaml) 开始调整。ELK 部署见 [快速部署](quickstart.md)。
@@ -35,14 +35,14 @@ Prometheus 或 VictoriaMetrics 以固定 `vector(1)` 只读查询验证 API。Ku
 | `POST /api/sources/{name}/check` | 执行只读检查，需带 `X-SRE-AIObs-Check: 1`；仅日志来源返回最近一分钟计数 |
 | `GET /api/sources/{name}/routes` | 获取生效规则、覆盖状态和可编辑状态 |
 | `PUT /api/sources/{name}/routes` | 保存有序数组，例如 `[{"label":"/api/orders/:id","pattern":"^/api/orders/[0-9]+$"}]` |
-| `DELETE /api/sources/{name}/routes` | 清除界面覆盖，恢复 YAML 规则 |
+| `DELETE /api/sources/{name}/routes` | 清除已保存的覆盖，恢复 YAML 规则 |
 | `GET /api/reports/{run}` | 预览历史报告，支持 `?format=html`、`json`、`markdown` 下载 |
 
 API 沿用看板认证。路由写接口还需 `X-Alert-Settings-Password`。保存与重置成功返回 `204`，无 URI 映射的数据源返回 `404`，规则不合法返回 `400`。更新只影响后续分析，已入库事件保留原路由标识。在「任务记录」点击 Run ID 可查看报告，报告展示窗口、尝试次数、日志量、延迟、风险类别、AI 分析和投递状态。没有采集数据时，JSON 的 `log_count` 为 `null`，预览明确标记数据缺失。
 
 ## 升级
 
-先在测试环境备份数据库，使用 Compose 部署时以原选项运行启动脚本，迁移容器应用新增 SQL。Kubernetes 或独立进程先运行新版本的 `sre-aiobs -migrate /migrations`，再更新服务。`/readyz` 会检查新增表。加载状态正常后，在看板选一个数据源保存规则，并观察后续巡检记录。已经保存的覆盖项在应用降版后仍留在数据库。
+先在测试环境备份数据库，使用 Compose 部署时以原选项运行启动脚本，迁移容器应用新增 SQL。Kubernetes 或独立进程先运行新版本的 `sre-aiobs -migrate /migrations`，再更新服务。`/readyz` 会检查新增表。加载状态正常后，在看板核对数据源，并观察后续自动巡检记录。已经保存的覆盖项在应用降版后仍留在数据库。
 
 ## 尚未完成
 

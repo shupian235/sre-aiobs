@@ -273,7 +273,6 @@ async function loadSources() {
     if (!response.ok) throw new Error(String(response.status));
     const sources=await response.json();
     renderSources(sources);
-    renderRouteSources(sources);
   } catch {
     byId("source-status").textContent="数据源列表暂不可用，请重新打开页面。";
   }
@@ -372,109 +371,6 @@ byId("alert-form").addEventListener("submit",async event=>{
     button.disabled=false;
   }
 });
-
-function renderRouteSources(sources) {
-  const select=byId("route-source");
-  const selectable=sources.filter(source=>source.routes);
-  for (const source of selectable) {
-    const option=element("option",source.name);
-    option.value=source.name;
-    select.append(option);
-  }
-  select.disabled=selectable.length===0;
-  byId("route-status").textContent=selectable.length?"请选择要配置的日志数据源。":"暂无已映射 URI 字段的数据源。";
-}
-
-function addRouteRow(rule={label:"",pattern:""}) {
-  const body=byId("route-body");
-  const row=body.insertRow();
-  for (const [field,title,max] of [["label","路由名",100],["pattern","匹配表达式",1024]]) {
-    const input=element("input");
-    input.type="text";
-    input.required=true;
-    input.maxLength=max;
-    input.value=rule[field];
-    input.setAttribute("aria-label",title);
-    row.insertCell().append(input);
-  }
-  const controls=row.insertCell();
-  const add=(label,action)=>{
-    const button=element("button",label,"detail-link");
-    button.type="button";
-    button.addEventListener("click",action);
-    controls.append(button);
-  };
-  add("上移",()=>{if(row.previousElementSibling) body.insertBefore(row,row.previousElementSibling);});
-  add("下移",()=>{if(row.nextElementSibling) body.insertBefore(row.nextElementSibling,row);});
-  add("删除",()=>row.remove());
-}
-
-let routeRequest;
-async function loadRoutes() {
-  routeRequest?.abort();
-  const controller=new AbortController();
-  routeRequest=controller;
-  const source=byId("route-source").value;
-  byId("route-form").hidden=true;
-  byId("route-password").value="";
-  if (!source) {
-    byId("route-status").textContent="请选择要配置的日志数据源。";
-    return;
-  }
-  byId("route-status").textContent="正在加载路由规则…";
-  try {
-    const response=await fetch("/api/sources/"+encodeURIComponent(source)+"/routes",{signal:controller.signal});
-    if (!response.ok) throw new Error();
-    const data=await response.json();
-    if (controller.signal.aborted) return;
-    byId("route-body").replaceChildren();
-    for (const rule of data.routes) addRouteRow(rule);
-    byId("route-fields").disabled=!data.editable;
-    byId("route-actions").hidden=!data.editable;
-    byId("route-reset").disabled=!data.overridden;
-    byId("route-form").hidden=false;
-    byId("route-status").textContent=(data.overridden?"当前使用界面配置。":"当前使用 YAML 默认规则。")+
-      (data.editable?"":"配置 ALERT_SETTINGS_PASSWORD 后可编辑。");
-  } catch {
-    if (!controller.signal.aborted) byId("route-status").textContent="路由规则加载失败。";
-  }
-}
-
-async function saveRoutes(method) {
-  const select=byId("route-source");
-  const fields=byId("route-fields");
-  const password=byId("route-password");
-  if (!password.reportValidity()) return;
-  const rules=Array.from(byId("route-body").rows,row=>{
-    const [label,pattern]=row.querySelectorAll("input");
-    return {label:label.value.trim(),pattern:pattern.value};
-  });
-  select.disabled=fields.disabled=true;
-  try {
-    const response=await fetch("/api/sources/"+encodeURIComponent(select.value)+"/routes",{
-      method,
-      headers:{"Content-Type":"application/json","X-Alert-Settings-Password":password.value},
-      body:method==="PUT"?JSON.stringify(rules):undefined
-    });
-    if (response.ok) {
-      await loadRoutes();
-      if (!byId("route-form").hidden) byId("route-status").textContent=method==="PUT"?"已保存，后续巡检将使用新规则。":"已恢复 YAML 默认规则。";
-    } else {
-      byId("route-status").textContent=response.status===403?"管理密码错误或未配置。":response.status===400?await response.text():"保存失败，请稍后重试。";
-    }
-  } catch {
-    byId("route-status").textContent="保存失败，请检查连接后重试。";
-  } finally {
-    password.value="";
-    select.disabled=false;
-    fields.disabled=false;
-  }
-}
-
-byId("route-source").addEventListener("change",loadRoutes);
-byId("route-add").addEventListener("click",()=>addRouteRow());
-byId("route-form").addEventListener("submit",event=>{event.preventDefault(); void saveRoutes("PUT");});
-byId("route-reset").addEventListener("click",()=>void saveRoutes("DELETE"));
 
 loadAlertSettings();
 loadSources();

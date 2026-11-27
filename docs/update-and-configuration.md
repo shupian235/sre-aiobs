@@ -6,7 +6,6 @@
 | --- | --- | --- |
 | 构建与安全 | Go 升级到 1.27.4，Docker 构建镜像同步。此前更新了 pgx、go-redis、x/text 和 x/sys，并收紧 HTTP 连接限制、日志错误输出和 `.env` 权限。 | [go.mod](../go.mod) · [Dockerfile](../Dockerfile) · [安全审查](security-review.md) |
 | 看板登录 | 增加 Google Authenticator 动态码和 Redis 会话，支持退出与防重放。 | `.env` 的 `DASHBOARD_TOTP_SECRET` |
-| Nginx 路由 | 界面可增加、排序、删除规则和恢复 YAML 默认规则，修改有审计记录。 | 运维看板的「路由配置」 |
 | 数据源 | Elasticsearch、Loki、Prometheus、VictoriaMetrics、CloudWatch、Kubernetes 支持统一只读连接检查。 | `config.yaml` 的 `sources` |
 | 巡检与报告 | 新增可选 WARN 和业务错误码激增检测、P90 指标，以及历史报告预览和 HTML、JSON、Markdown 下载。 | `config.yaml` 的 `rules`、Grafana 和看板的「任务记录」 |
 
@@ -30,9 +29,9 @@ Compose 会先执行迁移再启动应用。新增的 [003_source_routes.sql](..
 
 该变量留空时沿用 Basic Auth。启用后，原先使用 Basic Auth 的看板 API 调用需要改用会话。Kibana 和 Grafana 管理各自的登录配置。[详细启用步骤](quickstart.md#可选启用登录双重验证)
 
-## 配置路由和巡检
+## 配置数据源与巡检
 
-在运维看板打开 **路由配置**，选择已有 URI 字段映射的 Nginx 来源，填写路由名 `/api/orders/:id` 和表达式 `^/api/orders/[0-9]+$`。上移或下移可以调整匹配顺序。保存时输入 `ALERT_SETTINGS_PASSWORD`，规则从后续巡检窗口生效。点击「恢复 YAML 默认规则」可撤销该来源的界面覆盖。
+配置日志数据源后，平台会按既有周期自动查询聚合数据并执行巡检。
 
 在 `config.yaml` 的 `sources` 添加需要检查的来源。例如，将下面条目追加到现有列表：
 

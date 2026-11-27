@@ -3,7 +3,7 @@
 Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearch 和 Loki，通过聚合结果检测访问异常，使用 PostgreSQL 保存任务与风险事件，通过 Redis 协调任务、AI 调用限额和 Telegram 冷却。
 
 
-[更新与配置说明](docs/update-and-configuration.md)记录 Go 升级、登录双重验证、数据源接入、路由和巡检报告的配置方法。
+[更新与配置说明](docs/update-and-configuration.md)记录 Go 升级、登录双重验证、数据源接入和巡检报告的配置方法。
 
 ## 界面预览
 
@@ -22,11 +22,9 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 ![漏洞发现、Slack 与 Telegram 告警及 AWS SES 定期邮件](docs/preview/images/vulnerability-alerts.png)
 
 <details>
-<summary>查看双重验证、路由配置、巡检报告、Kibana 与部署示意图</summary>
+<summary>查看双重验证、巡检报告、Kibana 与部署示意图</summary>
 
 ![Google Authenticator 双重验证登录](docs/preview/images/totp-login.png)
-
-![Nginx 路由可视化配置](docs/preview/images/route-settings.png)
 
 ![六类数据源只读连接检查](docs/preview/images/source-management.png)
 
