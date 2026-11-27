@@ -23,7 +23,7 @@
 
 连接检查可选填 `check_timeout`（默认 3 秒，最大 4 秒）及 `check_retries`（默认 0，最多 2 次），重试包含在同一个超时窗口内。同一实例最多并发四个手动检查。
 
-业务来源以 `name` 区分，例如 AAPI、UAPI、MAPI、CBGame、KeyHub。按实际日志映射 `fields.level`、`fields.exception`、`fields.dependency` 和 `fields.businesscode`。其中 `businesscode` 仅映射在业务请求失败时出现的分类字段。配置 `rules.backend_warnings` 或 `rules.business_errors` 为正整数后启用各自规则，比较窗口计数与历史基线。
+用 `name` 区分业务日志来源，例如 `orders-api` 或 `billing-worker`。按实际日志映射 `fields.level`、`fields.exception`、`fields.dependency` 和 `fields.businesscode`。其中 `businesscode` 仅映射在业务请求失败时出现的分类字段。配置 `rules.backend_warnings` 或 `rules.business_errors` 为正整数后启用各自规则，比较窗口计数与历史基线。
 
 ## API
 
