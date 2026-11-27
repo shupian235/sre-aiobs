@@ -28,7 +28,7 @@ var Schedules = []Schedule{{"minute", time.Minute}, {"five_minutes", 5 * time.Mi
 type Notifier interface {
 	Telegram(context.Context, config.Config, platform.Report, platform.AlertSettings) error
 	Slack(context.Context, platform.Report, platform.AlertSettings) error
-	Email(context.Context, config.Config, platform.Report) error
+	Email(context.Context, platform.EmailDestination, platform.Report) error
 }
 
 type Runner struct {
@@ -127,7 +127,7 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 	var failures error
 	telegram := j.Kind == "minute" && c.TelegramChat != ""
 	slack := j.Kind == "minute" && os.Getenv("SLACK_WEBHOOK_URL") != ""
-	email := (j.Kind == "hour" || j.Kind == "day") && len(c.EmailTo) > 0
+	email := j.Kind == "hour" || j.Kind == "day"
 	if !telegram && !slack && !email {
 		return failures
 	}
@@ -141,8 +141,8 @@ func (r *Runner) process(ctx context.Context, c config.Config, s config.Source, 
 	if slack && settings.Slack {
 		failures = errors.Join(failures, r.Store.Notification(ctx, j.ID, "slack", func() error { return r.Notifier.Slack(ctx, report, settings) }))
 	}
-	if email && settings.Email {
-		return errors.Join(failures, r.Store.Notification(ctx, j.ID, "ses", func() error { return r.Notifier.Email(ctx, c, report) }))
+	if email && settings.Email && settings.EmailDestination.Configured() {
+		return errors.Join(failures, r.Store.Notification(ctx, j.ID, "ses", func() error { return r.Notifier.Email(ctx, *settings.EmailDestination, report) }))
 	}
 	return failures
 }

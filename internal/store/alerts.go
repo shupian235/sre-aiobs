@@ -23,7 +23,7 @@ func (s Store) SaveAlertSettings(ctx context.Context, settings platform.AlertSet
 	}
 	return pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO alert_settings (singleton,payload) VALUES(true,$1)
-   ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload`, settings); err != nil {
+   ON CONFLICT(singleton) DO UPDATE SET payload=alert_settings.payload || excluded.payload`, settings); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO audit_logs(action) VALUES('alert_settings_updated')`)

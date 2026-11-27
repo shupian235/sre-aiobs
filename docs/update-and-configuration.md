@@ -53,3 +53,7 @@ region: client_geo.region_iso_code
 ```
 
 也可通过 `geo_db` 配置可读的 GeoLite2 City 等兼容 MMDB 文件路径，供巡检查询。使用容器时，先把文件以只读方式挂载到相同路径。MMDB 查到的国家优先，其余情况读取 Elasticsearch 聚合结果。私网地址或没有地理结果的事件显示「—」。新巡检保存国家与地区，历史事件沿用此前记录的数据。
+
+## 从旧配置迁移 SES 邮件
+
+发件地址、收件地址和可选 SES 区域现在统一在 Web「告警设置」维护，保存后后续报告任务直接读取 PostgreSQL。升级时请把旧 `email_from` 和 `email_to` 的值录入 Web 并保存；旧 YAML 键可以删除，保留时也不会再作为发送地址。现有表自动保存新字段，无需额外迁移。AWS 发送凭据仍通过 IAM Role 或部署 Secret 提供。[Web 配置步骤](web-operations.md#报警与通知)

@@ -162,12 +162,9 @@ func run() error {
 	initial := c
 	activeConfig.Store(&initial)
 	access := dashboard.SourceAccess{
-		Current: func() []config.Source { return activeConfig.Load().Sources },
-		AlertDestinations: func() (bool, bool) {
-			current := activeConfig.Load()
-			return current.TelegramChat != "", current.EmailFrom != "" && len(current.EmailTo) > 0
-		},
-		HTTP: client,
+		Current:             func() []config.Source { return activeConfig.Load().Sources },
+		TelegramDestination: func() bool { return activeConfig.Load().TelegramChat != "" },
+		HTTP:                client,
 	}
 	dashboardPassword := os.Getenv("DASHBOARD_PASSWORD")
 	login, err := dashboard.NewLogin(os.Getenv("DASHBOARD_TOTP_SECRET"), dashboardPassword, cache)

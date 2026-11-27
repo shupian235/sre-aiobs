@@ -22,14 +22,14 @@
 
 ## 报警与通知
 
-Web 菜单名称是「告警设置」。先在部署端配置要用的渠道：
+Web 菜单名称是「告警设置」。按下表配置要用的渠道。
 
 | 渠道 | 部署配置 | 出现在哪里 |
 | --- | --- | --- |
 | Slack | `.env` 注入 `SLACK_WEBHOOK_URL` | 分钟任务的实时告警 |
 | Telegram | `.env` 注入 `TELEGRAM_BOT_TOKEN`，`config.yaml` 填 `telegram_chat` | 分钟任务的实时告警 |
-| AWS SES 邮件 | `config.yaml` 填 `email_from`、`email_to`，部署配置 `AWS_REGION` 和 SES 发送权限 | 小时报告和日报 |
+| AWS SES 邮件 | Web 填发件地址、收件地址和可选 SES 区域，部署环境提供 SES 发送权限 | 小时报告和日报 |
 
-修改环境变量后用原启动选项更新容器。登录 Web 后打开「告警设置」，选择渠道、最低风险评分和冷却时间，输入 `ALERT_SETTINGS_PASSWORD` 保存。默认最低评分 80，冷却 15 分钟。评分和冷却适用于实时告警，邮件报告单独启用。页面只显示配置是否齐备，实际投递结果在「任务记录 → Run ID → 投递状态」查看。SES 还需确保发件身份已经验证。[详细告警配置](deployment.md#ai-与通知)
+修改环境变量后用原启动选项更新容器。邮件地址和区域保存在 PostgreSQL，Web 保存后后续任务直接读取。收件地址可每行一个或用逗号分隔，最多 50 个；区域留空时由 AWS SDK 从部署环境解析。升级时请把原 YAML 的邮件地址录入 Web，旧 YAML 地址会被忽略。登录 Web 后打开「告警设置」，选择渠道、最低风险评分和冷却时间，输入 `ALERT_SETTINGS_PASSWORD` 保存。默认最低评分 80，冷却 15 分钟。评分和冷却适用于实时告警，邮件报告单独启用。页面只显示配置是否齐备，实际投递结果在「任务记录 → Run ID → 投递状态」查看。SES 还需确保发件身份已经验证。[详细告警配置](deployment.md#ai-与通知)
 
 ![Web 告警设置示意](preview/images/web-alert-settings.png)

@@ -65,8 +65,8 @@ type Config struct {
 	Rules             Rules
 	AI                AI
 	TelegramChat      string   `yaml:"telegram_chat"`
-	EmailFrom         string   `yaml:"email_from"`
-	EmailTo           []string `yaml:"email_to"`
+	LegacyEmailFrom   string   `yaml:"email_from"`
+	LegacyEmailTo     []string `yaml:"email_to"`
 	GeoDB             string   `yaml:"geo_db"`
 }
 

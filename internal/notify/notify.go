@@ -53,8 +53,8 @@ type reportView struct {
 
 var htmlReport = template.Must(template.New("report").Parse(`<!doctype html><html><body><h1>日志探测报告</h1><p>{{.Source}} / {{.Index}} / {{.Environment}}</p><p>{{.Window.Start}} 至 {{.Window.End}}</p><p>原始日志量 {{.Snapshot.Total}}，敏感 URI 事件请求量 {{.Sensitive}}</p>{{if .VulnerabilityScan}}<h2>漏洞扫描发现</h2><p>本窗口共 {{.VulnerabilityTotal}} 个 CVE，最多展示 100 项。</p>{{if .Vulnerabilities}}<table><tr><th>CVE</th><th>扫描记录数</th></tr>{{range .Vulnerabilities}}<tr><td>{{.Target}}</td><td>{{.Count}}</td></tr>{{end}}</table>{{else}}<p>本窗口未收到符合条件的 CVE 记录。</p>{{end}}{{end}}<h2>地区分布</h2><ul>{{range $region,$count := .Regions}}<li>{{$region}} {{$count}}</li>{{end}}</ul><h2>风险事件与异常 IP</h2><table><tr><th>规则</th><th>目标标识</th><th>IP</th><th>国家</th><th>地区</th><th>次数</th><th>风险</th></tr>{{range .Events}}<tr><td>{{.Rule}}</td><td>{{.Target}}</td><td>{{.IP}}</td><td>{{.Country}}</td><td>{{.Region}}</td><td>{{.Count}}</td><td>{{.Score}}</td></tr>{{end}}</table><h2>接口响应时间（秒）</h2><table><tr><th>接口标识</th><th>P50</th><th>P95</th><th>P99</th></tr>{{range .Latency}}<tr><td>{{.Endpoint}}</td><td>{{.P50}}</td><td>{{.P95}}</td><td>{{.P99}}</td></tr>{{end}}</table>{{with .Analysis}}<h2>AI 分析</h2><p>{{.Severity}} {{.Summary}}</p><ul>{{range .Actions}}<li>{{.}}</li>{{end}}</ul>{{end}}</body></html>`))
 
-func (s Service) Email(ctx context.Context, c config.Config, r platform.Report) error {
-	if len(c.EmailTo) == 0 {
+func (s Service) Email(ctx context.Context, destination platform.EmailDestination, r platform.Report) error {
+	if !destination.Configured() {
 		return nil
 	}
 	view := reportView{Report: r, Regions: map[string]int{}}
@@ -102,9 +102,13 @@ func (s Service) Email(ctx context.Context, c config.Config, r platform.Report) 
 		subject = "漏洞检测" + period + " · " + r.Source
 	}
 	_, err := s.SES.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(c.EmailFrom), Destination: &types.Destination{ToAddresses: c.EmailTo},
+		FromEmailAddress: aws.String(destination.From), Destination: &types.Destination{ToAddresses: destination.To},
 		Content: &types.EmailContent{Simple: &types.Message{Subject: &types.Content{Data: aws.String(subject), Charset: aws.String("UTF-8")},
 			Body: &types.Body{Html: &types.Content{Data: aws.String(body.String()), Charset: aws.String("UTF-8")}}}},
+	}, func(options *sesv2.Options) {
+		if destination.Region != "" {
+			options.Region = destination.Region
+		}
 	})
 	if err != nil {
 		return errors.New("SES send failed")

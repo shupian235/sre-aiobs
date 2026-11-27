@@ -36,7 +36,7 @@ UTC 每分钟、五分钟、小时、日窗口延迟 15 秒后执行。任务使
 
 AI 默认关闭。设置 `ai.provider` 为 `openai` 或 `claude` 并填写 `ai.model`。通过 `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY` 注入凭据。AI 输入最多 20 条规则筛选事件，仅包含固定规则标识、计数、评分、规范化 IP 及地理代码。两种 Provider 的输出统一验证。Redis 原子计数限制每分钟十次及每天 `daily_requests` 次，重试占用配额。每次输出最多 600 tokens，并按模型单价核算预算。规则与通知可在分析失败时继续运行。AI 动作只写入报告供人工审阅。
 
-填写 `telegram_chat`，注入 `TELEGRAM_BOT_TOKEN`。分钟任务通知风险分数不低于 80 的事件，同一来源、规则、IP 默认冷却 15 分钟，评分与冷却时间可在看板内调整。填写 `email_from` 和 `email_to` 启用小时及日报。AWS 凭据使用工作负载角色或环境 Secret，设置 `AWS_REGION`。SES 发件身份须验证，沙箱下收件身份也须验证，IAM 按发件身份限制 `ses:SendEmail`。
+填写 `telegram_chat`，注入 `TELEGRAM_BOT_TOKEN`。分钟任务通知风险分数不低于 80 的事件，同一来源、规则、IP 默认冷却 15 分钟，评分与冷却时间可在看板内调整。在 Web「告警设置」填写 SES 发件地址和收件地址并启用小时报告及日报。SES 区域可在同一页面填写，留空使用 AWS SDK 的部署环境区域。AWS 凭据使用工作负载角色或环境 Secret。SES 发件身份须验证，沙箱下收件身份也须验证，IAM 按发件身份限制 `ses:SendEmail`。
 
 ## 部署
 
@@ -161,7 +161,7 @@ Elasticsearch 使用可聚合字段。依赖字段只在调用失败时写入分
 
 探测任务按窗口聚合 CVE。同一窗口中同一 CVE 合并计数。看板和 `GET /api/vulnerabilities` 展示报告的 CVE、扫描记录数和来源。看板通用风险筛选使用固定的分类优先级 80，漏洞真实严重度以原扫描报告为准。
 
-配置现有 AWS SES 的 `email_from`、`email_to` 和 `AWS_REGION`，再在看板「告警设置」启用「邮件小时报告与日报」。UTC 每个整点和每日零点为各扫描数据源发送报告，即使窗口内没有 CVE。邮件仍使用现有投递重试和审计状态。
+在看板「告警设置」保存 SES 发件人、收件人与可选区域，再启用「邮件小时报告与日报」。UTC 每个整点和每日零点为各扫描数据源发送报告，即使窗口内没有 CVE。邮件仍使用现有投递重试和审计状态。
 
 ## Nginx 安全巡检
 

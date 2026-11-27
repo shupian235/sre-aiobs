@@ -19,3 +19,5 @@ dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(-
 .source-check{display:inline-flex;align-items:center;gap:8px;white-space:normal}.source-check [role=status]{color:var(--muted)}
 
 .source-hint{margin:0 0 12px;color:var(--muted);font-size:.88rem}
+
+.email-destination{align-items:start;margin:0 0 16px}.email-destination textarea{width:100%;padding:9px 11px;border:1px solid #cfdaea;border-radius:8px;font:inherit;color:inherit;resize:vertical}

@@ -64,7 +64,7 @@
         <a class="channel-button" href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">配置 Slack Webhook</a>
         <p>Telegram：用 <code>/newbot</code> 创建机器人，注入 <code>TELEGRAM_BOT_TOKEN</code>，并在 YAML 填写 <code>telegram_chat</code>。</p>
         <p>Slack：启用 Incoming Webhooks，选择接收频道，再注入 <code>SLACK_WEBHOOK_URL</code>。</p>
-        <p>邮件：在 YAML 填写 <code>email_from</code> 和 <code>email_to</code>，并为部署配置 AWS SES 地区及发送权限。</p>
+        <p>邮件：在下方填写已通过 AWS SES 验证的发件地址、收件地址和 AWS 区域。AWS 发送权限由部署环境提供。</p>
       </div>
       <form id="alert-form" autocomplete="off">
         <fieldset id="alert-fields" disabled>
@@ -74,6 +74,11 @@
             <label><input id="alert-slack" type="checkbox">Slack 实时告警 <small id="slack-state"></small></label>
             <label><input id="alert-telegram" type="checkbox">Telegram 实时告警 <small id="telegram-state"></small></label>
             <label><input id="alert-email" type="checkbox">邮件小时报告与日报 <small id="email-state"></small></label>
+          </div>
+          <div class="alert-fields email-destination">
+            <label>SES 发件地址<input id="email-from" type="email" maxlength="254" placeholder="security@example.net"></label>
+            <label>SES 收件地址<textarea id="email-to" rows="3" maxlength="12750" placeholder="每行一个，也可用逗号分隔"></textarea></label>
+            <label>SES 区域<input id="email-region" type="text" maxlength="40" placeholder="留空使用部署环境的区域"></label>
           </div>
         </fieldset>
         <div id="alert-actions" hidden><label>告警管理密码 <input id="alert-password" type="password" required></label><button id="alert-save" type="submit">保存设置</button></div>

@@ -13,8 +13,8 @@ import (
 
 // SourceAccess exposes only the current validated scheduler configuration.
 type SourceAccess struct {
-	AlertDestinations func() (telegram, email bool)
-	Login             *Login
+	TelegramDestination func() bool
+	Login               *Login
 
 	Current func() []config.Source
 	HTTP    *http.Client

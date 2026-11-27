@@ -71,5 +71,4 @@ ai:
   timeout: 15s
 # geo_db: /etc/sre-aiobs/geo/GeoLite2-City.mmdb
 # telegram_chat: "-1001234567890"
-# email_from: security@example.net
-# email_to: [sre@example.net]
+# 邮件发件人与收件人从 Web「告警设置」保存。

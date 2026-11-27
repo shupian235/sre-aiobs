@@ -19,7 +19,7 @@ type alertStore interface {
 	SaveAlertSettings(context.Context, platform.AlertSettings) error
 }
 
-func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string, destinations func() (telegram, email bool)) {
+func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handler) http.HandlerFunc, adminPassword string, telegramDestination func() bool) {
 	expected := sha256.Sum256([]byte(adminPassword))
 	const route = "/api/alert-settings"
 	mux.HandleFunc("GET "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,10 +30,7 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 			http.Error(w, "Alert settings unavailable", 503)
 			return
 		}
-		var telegram, email bool
-		if destinations != nil {
-			telegram, email = destinations()
-		}
+		telegram := telegramDestination != nil && telegramDestination()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(struct {
 			platform.AlertSettings
@@ -41,7 +38,7 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 			TelegramConfigured bool `json:"telegram_configured"`
 			EmailConfigured    bool `json:"email_configured"`
 			Editable           bool `json:"editable"`
-		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", telegram && os.Getenv("TELEGRAM_BOT_TOKEN") != "", email, adminPassword != ""})
+		}{settings, os.Getenv("SLACK_WEBHOOK_URL") != "", telegram && os.Getenv("TELEGRAM_BOT_TOKEN") != "", settings.EmailDestination.Configured(), adminPassword != ""})
 	})))
 	mux.HandleFunc("PUT "+route, protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		supplied := sha256.Sum256([]byte(r.Header.Get("X-Alert-Settings-Password")))
@@ -55,20 +52,21 @@ func mountAlerts(mux *http.ServeMux, backend alertStore, protect func(http.Handl
 			return
 		}
 		var input struct {
-			MinimumScore    int   `json:"minimum_score"`
-			CooldownMinutes int   `json:"cooldown_minutes"`
-			Telegram        *bool `json:"telegram"`
-			Slack           *bool `json:"slack"`
-			Email           *bool `json:"email"`
+			MinimumScore     int                        `json:"minimum_score"`
+			CooldownMinutes  int                        `json:"cooldown_minutes"`
+			Telegram         *bool                      `json:"telegram"`
+			Slack            *bool                      `json:"slack"`
+			Email            *bool                      `json:"email"`
+			EmailDestination *platform.EmailDestination `json:"email_destination"`
 		}
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384))
 		decoder.DisallowUnknownFields()
 		var trailing any
 		if decoder.Decode(&input) != nil || decoder.Decode(&trailing) != io.EOF || input.Telegram == nil || input.Slack == nil || input.Email == nil {
 			http.Error(w, "Invalid alert settings", 400)
 			return
 		}
-		settings := platform.AlertSettings{MinimumScore: input.MinimumScore, CooldownMinutes: input.CooldownMinutes, Telegram: *input.Telegram, Slack: *input.Slack, Email: *input.Email}
+		settings := platform.AlertSettings{MinimumScore: input.MinimumScore, CooldownMinutes: input.CooldownMinutes, Telegram: *input.Telegram, Slack: *input.Slack, Email: *input.Email, EmailDestination: input.EmailDestination}
 		if !settings.Valid() {
 			http.Error(w, "Invalid alert settings", 400)
 			return

@@ -345,13 +345,21 @@ async function loadAlertSettings() {
     for (const key of ["slack","telegram","email"]) byId("alert-"+key).checked=settings[key];
     byId("slack-state").textContent=settings.slack_configured?"· 已注入 Webhook":"· 未配置 Webhook";
     byId("telegram-state").textContent=settings.telegram_configured?"· 已配置机器人与会话":"· 缺少机器人或会话";
-    byId("email-state").textContent=settings.email_configured?"· 已填发件人与收件人":"· 缺少发件人或收件人";
+    const email=settings.email_destination||{};
+    byId("email-from").value=email.from||"";
+    byId("email-to").value=(email.to||[]).join("\n");
+    byId("email-region").value=email.region||"";
+    showEmailDestinationStatus(settings.email_configured);
     byId("alert-fields").disabled=!settings.editable;
     byId("alert-actions").hidden=!settings.editable;
     status.textContent=settings.editable?"保存后应用于后续告警任务。":"请配置告警管理密码以启用修改。";
   } catch {
     status.textContent="暂时无法加载告警设置，请刷新页面。";
   }
+}
+
+function showEmailDestinationStatus(configured) {
+  byId("email-state").textContent=configured?"· 已保存发件人与收件人":"· 缺少发件人或收件人";
 }
 
 byId("alert-form").addEventListener("submit",async event=>{
@@ -361,7 +369,12 @@ byId("alert-form").addEventListener("submit",async event=>{
   status.textContent="正在保存…";
   const settings={
     minimum_score:byId("minimum-score").valueAsNumber,
-    cooldown_minutes:byId("cooldown-minutes").valueAsNumber
+    cooldown_minutes:byId("cooldown-minutes").valueAsNumber,
+    email_destination:{
+      from:byId("email-from").value.trim(),
+      to:byId("email-to").value.split(/[,\n]+/).map(address=>address.trim()).filter(Boolean),
+      region:byId("email-region").value.trim()
+    }
   };
   for (const key of ["slack","telegram","email"]) settings[key]=byId("alert-"+key).checked;
   try {
@@ -371,8 +384,12 @@ byId("alert-form").addEventListener("submit",async event=>{
       body:JSON.stringify(settings)
     });
     if (response.status===403) status.textContent="告警管理密码错误或未配置。";
+    else if (response.status===400) status.textContent="请检查风险阈值、邮件地址和 AWS 区域，收件地址最多 50 个。";
     else if (!response.ok) status.textContent="保存失败，请检查设置后重试。";
-    else status.textContent="已保存。后续告警任务将使用新设置。";
+    else {
+      showEmailDestinationStatus(Boolean(settings.email_destination.from&&settings.email_destination.to.length));
+      status.textContent="已保存。后续告警任务将使用新设置。";
+    }
   } catch {
     status.textContent="无法保存，请检查连接后重试。";
   } finally {
