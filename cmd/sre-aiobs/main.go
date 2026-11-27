@@ -193,7 +193,13 @@ func run() error {
 			return victoria.Link(job), nil
 		}
 	}
-	dashboard.Mount(mux, st, os.Getenv("DASHBOARD_PASSWORD"), access)
+	dashboardPassword := os.Getenv("DASHBOARD_PASSWORD")
+	login, err := dashboard.NewLogin(os.Getenv("DASHBOARD_TOTP_SECRET"), dashboardPassword, cache)
+	if err != nil {
+		return err
+	}
+	access.Login = login
+	dashboard.Mount(mux, st, dashboardPassword, access)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintln(w, "ok") })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 整合 AIOps 平台</title>
+<link rel="stylesheet" href="/login.css">
+</head>
+<body>
+<main>
+  <h1>登录整合 AIOps 平台</h1>
+  <form method="post" action="/login">
+    <label>账号 <input name="username" value="operator" autocomplete="username" required></label>
+    <label>密码 <input type="password" name="password" autocomplete="current-password" required></label>
+    <label>Google Authenticator 动态码 <input name="code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label>
+    <p role="alert"><!--login-status--></p>
+    <button type="submit">登录</button>
+  </form>
+</main>
+</body>
+</html>

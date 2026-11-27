@@ -75,6 +75,8 @@ Compose 测试用独立的随机项目名，验证真实 Elasticsearch 日志聚
 
 ## Web 运维看板
 
+[启用 Google Authenticator 动态验证码](docs/quickstart.md#可选启用登录双重验证)。
+
 通过环境变量或 Kubernetes Secret 注入 `DASHBOARD_PASSWORD`，启动服务后访问根路径 `/`。浏览器登录框的用户名可填 `operator`，密码为注入值。默认 Compose 地址为 `http://127.0.0.1:8080/`。看板支持按数据源、时间范围和风险评分查询，包含请求趋势、规则分布、任务记录、风险详情及已保存的 AI 分析。
 
 看板使用五分钟或小时任务的已保存窗口，同一视图使用单一粒度，避免重复统计。未配置密码时看板与数据 API 返回 503。生产环境应通过内网 HTTPS 入口访问。现有健康检查和指标路径独立于看板认证。

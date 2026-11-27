@@ -287,6 +287,12 @@ async function refresh() {
   void refreshNginxRoutes(filters,controller);
   try {
     const response=await fetch("/api/dashboard?"+filters,{signal:controller.signal});
+    const login=response.headers.get("X-SRE-AIObs-Login") === "/login";
+    if (login && response.status === 401) {
+      window.location.replace("/login");
+      return;
+    }
+    byId("logout").hidden = !login;
     if (!response.ok) throw new Error(String(response.status));
     const data=await response.json();
     if (activeRequest!==controller) return;

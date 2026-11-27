@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>安全概览 · SRE AIObs</title>
+<title>安全概览 · 整合 AIOps 平台</title>
 <link rel="stylesheet" href="/app.css">
 <script src="/app.js" defer></script>
 </head>
 <body>
 <div class="layout">
 <aside class="sidebar">
-  <div class="brand"><span class="mark" aria-hidden="true">◈</span><div><strong>SRE AIObs</strong><small>LOG OPERATIONS</small></div></div>
+  <div class="brand"><span class="mark" aria-hidden="true">◈</span><div><strong>整合 AIOps 平台</strong><small>SRE AIObs</small></div></div>
   <nav aria-label="看板导航">
     <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
     <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
@@ -20,6 +20,7 @@
     <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
     <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
   </nav>
+  <form id="logout" method="post" action="/logout" hidden><button type="submit">退出登录</button></form>
   <div class="sidefoot"><span class="side-dot"></span>安全运维控制台</div>
 </aside>
 <main id="overview">

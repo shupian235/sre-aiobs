@@ -3,7 +3,6 @@ package dashboard
 import (
 	"context"
 	"crypto/sha256"
-	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -33,20 +32,25 @@ func Mount(mux *http.ServeMux, reader Reader, password string, access SourceAcce
 		panic(err)
 	}
 	expected := sha256.Sum256([]byte(password))
+	if access.Login != nil {
+		access.Login.mount(mux, expected)
+	}
 	protected := func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "no-store")
-			w.Header().Set("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("Referrer-Policy", "no-referrer")
+			dashboardHeaders(w)
+			if access.Login != nil {
+				if access.Login.authenticate(w, r) {
+					w.Header().Set("X-SRE-AIObs-Login", "/login")
+					next.ServeHTTP(w, r)
+				}
+				return
+			}
 			if password == "" {
 				http.Error(w, "Dashboard requires DASHBOARD_PASSWORD", http.StatusServiceUnavailable)
 				return
 			}
 			username, secret, ok := r.BasicAuth()
-			supplied := sha256.Sum256([]byte(secret))
-			passwordMatches := subtle.ConstantTimeCompare(expected[:], supplied[:]) == 1
-			if !ok || username != "operator" || !passwordMatches {
+			if !ok || !credentialsMatch(username, secret, expected) {
 				w.Header().Set("WWW-Authenticate", `Basic realm="SRE AIObs", charset="UTF-8"`)
 				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return
@@ -151,4 +155,11 @@ func parseFilters(q url.Values) (filters, bool) {
 		kind = "five_minutes"
 	}
 	return filters{q.Get("source"), kind, time.Duration(hours) * time.Hour, minimum}, true
+}
+
+func dashboardHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 }

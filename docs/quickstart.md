@@ -65,3 +65,15 @@ ansible-playbook -i deploy/collectors/inventory.ini deploy/collectors/filebeat.y
 ```
 
 [完整部署手册](deployment.md) · [界面和图表预览](preview/README.md)
+
+## 可选启用登录双重验证
+
+在部署机生成一份 Base32 密钥，从安全终端录入 Google Authenticator。该密钥等同于验证器备份，请妥善保管。
+
+```bash
+openssl rand 20 | base32
+```
+
+在 Google Authenticator 选择 **输入设置密钥**，账号填 `SRE AIObs:operator`，密钥填刚生成的值，类型选择 **基于时间**。将同一密钥放入部署机 `.env` 的 `DASHBOARD_TOTP_SECRET`，再以原选项运行启动脚本。Kubernetes 使用现有 `sre-aiobs-env` Secret 注入该变量并滚动重启。
+
+启用后，在 HTTPS 入口访问运维看板，输入 `operator`、`DASHBOARD_PASSWORD` 和手机上的 6 位动态码。登录会话为 8 小时，可以在侧栏退出。服务器需要正确的时间和可用的 Redis。配置留空时沿用原先的 Basic Auth。Grafana 与 Kibana 使用各自的登录配置。请重新配置依赖 Basic Auth 的运维 API 调用，因为启用双重验证后运维 API 也要求会话。
