@@ -33,6 +33,8 @@
 
 ## 自动巡检与运维
 
+[AIOps 登录界面离线预览](login.html)
+
 [Web 登录、Nginx 安全巡检与告警配置](../web-operations.md)
 
 ![Google Authenticator 双重验证登录](images/totp-login.png)

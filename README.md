@@ -8,7 +8,9 @@
 
 图片为界面示意或模拟数据。操作步骤见 [Web 配置手册](docs/web-operations.md)。
 
-### Web 登录
+### AIOps Web 登录
+
+[打开登录界面离线预览](docs/preview/login.html) · [如何启用独立登录页](docs/web-operations.md#web-登录)
 
 ![Web 登录与 Google Authenticator 六位动态码](docs/preview/images/totp-login.png)
 

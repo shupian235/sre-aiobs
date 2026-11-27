@@ -6,6 +6,8 @@
 
 启用 Google Authenticator 时，用 `openssl rand 20 | base32` 生成密钥，在验证器中选择基于时间的动态码，同时将密钥写入部署机 `.env` 的 `DASHBOARD_TOTP_SECRET`。按原启动参数更新容器后，登录页会要求账号、密码和六位动态码。Kubernetes 部署通过 `sre-aiobs-env` Secret 注入相同变量。启用动态码后用 HTTPS 入口访问运维看板。[完整绑定步骤](quickstart.md#可选启用登录双重验证)
 
+启用动态码后，登录页路径为 `/login`；动态码未配置时，访问首页会出现浏览器 Basic Auth 登录弹窗。[打开 AIOps 登录界面离线预览](preview/login.html)
+
 ![Google Authenticator Web 登录](preview/images/totp-login.png)
 
 ## Nginx 安全巡检
