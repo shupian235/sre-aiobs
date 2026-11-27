@@ -255,6 +255,6 @@ NGINX_LOG_DIR=/var/log/nginx NGINX_LOG_GLOB=sre-aiobs.jsonl \
 
 本机采集链路为 **Nginx JSON 日志 → Filebeat → Logstash → Elasticsearch**。Logstash 使用持久化队列，默认容量 512 MB，且只拥有 Nginx 索引写入权限。Beats 端口 5044 仅在 Compose 网络内可达。已有的 Ansible 批量采集仍可通过 `--with-ingest-gateway` 启用的内网 HTTPS 网关写入 Elasticsearch。
 
-Kibana 默认绑定 `127.0.0.1:5601`。初次登录使用 `elastic` 和 `.env` 中的 `ELASTIC_PASSWORD`。日常使用请创建受限的个人账号。Kibana 服务内部使用独立的 `kibana_system` 密码，密钥保存在 `.env`，重启时复用。启动后可在 Discover 选择 Nginx、Applications 或 Vulnerabilities 三个预建 Data View。Nginx Data View 沿用两份附件中的 ID。需要在 Kibana 导入看板时，在兼容版本的原 Kibana 中通过 Saved Objects 导出 NDJSON，再用目标 Kibana 的 Saved Objects 界面导入。目前部署包内的两份完整看板通过 Grafana 自动加载，附件粘贴的面板 JSON 需从源 Kibana 导出为 Saved Objects 文件后导入。
+Kibana 默认绑定 `127.0.0.1:5601`。初次登录使用 `elastic` 和 `.env` 中的 `ELASTIC_PASSWORD`。日常使用请创建受限的个人账号。Kibana 服务内部使用独立的 `kibana_system` 密码，密钥保存在 `.env`，重启时复用。启动后可在 Discover 选择 Nginx、Applications 或 Vulnerabilities 三个预建 Data View。Nginx Data View 沿用两份附件中的 ID。启动时会自动导入 [Nginx Access 日志看板](../deploy/elk/dashboards/sre-aiobs-nginx-access.ndjson) 和 [Nginx 地理分布看板](../deploy/elk/dashboards/sre-aiobs-nginx-geo.ndjson)。登录后在 **Analytics → Dashboard** 打开。再次启动时保留已经安装的同 ID 看板。已有 Kibana 8.17 环境也可在 **Stack Management → Saved Objects → Import** 导入这两个 NDJSON，先确保 Nginx Data View ID 为 `bc589ecf-5117-40ca-b632-cb021652f611` 并指向 `nginx-access-*`。Grafana 看板也会自动加载。
 
 首次启动需拉取 Elastic 官方镜像。可用 `COMPOSE_WAIT_TIMEOUT=480` 延长服务就绪等待。若单机上已经有 `config.yaml`，脚本会保留它，按前文合并本地 Elasticsearch 数据源即可。

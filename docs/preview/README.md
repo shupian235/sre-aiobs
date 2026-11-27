@@ -38,6 +38,11 @@
 
 ## Kibana 与采集链路
 
+完整 ELK 首次启动后，在 Kibana **Analytics → Dashboard** 可以直接打开两份内置看板。
+
+- [Nginx Access 日志看板](../../deploy/elk/dashboards/sre-aiobs-nginx-access.ndjson)包含每分钟 QPS、P50／P95／P99、状态码、流量、接口延迟和错误率。
+- [Nginx 地理分布看板](../../deploy/elk/dashboards/sre-aiobs-nginx-geo.ndjson)包含国家、地区、城市与高频 IP，按来源查看流量和错误数。
+
 Kibana Discover 预置以下三个 Data View，可按时间范围和字段筛选：
 
 | Data View | Elasticsearch 索引 | 来源 |
