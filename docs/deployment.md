@@ -36,9 +36,63 @@ AI 默认关闭。设置 `ai.provider` 为 `openai` 或 `claude` 并填写 `ai.m
 
 ## 部署
 
-Compose 注入 `POSTGRES_PASSWORD`、`REDIS_PASSWORD`、`DATABASE_URL` 和 `REDIS_URL`，将 `AIOBS_CONFIG` 指向本地配置后运行 `docker compose up -d --build`。示例配置只展示字段映射，需替换成实际来源。生产迁移建议使用专用账号。运行连接建议启用 PostgreSQL TLS 验证及 Redis TLS。
+### Docker Compose
 
-Kubernetes 推送构建镜像后，替换 `deploy/kubernetes/deployment.yaml` 内的镜像地址。创建 `sre-aiobs-config` ConfigMap，其键为 `config.yaml`，以及运行和迁移用的两个 Secret。挂载 GeoIP 库时更新卷配置。应用清单后检查迁移 Job 和 Deployment 状态。将 `/metrics` 添加到 Prometheus 并导入 Grafana Dashboard。服务内部暴露 `/healthz`、`/readyz`、`/metrics`，保持访问范围在集群监控网络内。
+在能访问日志源的机器安装 Docker 和 Compose v2，然后克隆仓库。
+
+```sh
+git clone https://github.com/shupian235/sre-aiobs.git
+cd sre-aiobs
+cp config.example.yaml config.yaml
+```
+
+编辑 `config.yaml`。仅保留要接入的 Elasticsearch 或 Loki 数据源，将地址、索引或标签选择器、字段名替换为实际值。保留应用监听地址 `:8080`，或同步修改 Compose 的容器端口映射。
+
+首次部署时创建 `.env`，将下列占位值替换为强随机值。同一个 PostgreSQL 或 Redis 密码要在各自密码变量和连接串中保持一致。如果密码含 URL 保留字符，连接串中的密码需做百分号编码。
+
+```dotenv
+POSTGRES_PASSWORD=replace_with_postgres_password
+REDIS_PASSWORD=replace_with_redis_password
+DATABASE_URL=postgres://aiobs:replace_with_postgres_password@postgres:5432/aiobs?sslmode=disable
+REDIS_URL=redis://:replace_with_redis_password@redis:6379/0
+DASHBOARD_PASSWORD=replace_with_dashboard_password
+ALERT_SETTINGS_PASSWORD=replace_with_settings_password
+AIOBS_CONFIG=./config.yaml
+```
+
+按需在 `.env` 中配置与数据源匹配的 `ELASTICSEARCH_API_KEY` 或 `LOKI_TOKEN`，以及 Slack、Telegram、AI 或 SES 凭据。已有环境应继续使用原数据库密码。`config.yaml` 和 `.env` 已列入 Git 忽略规则。
+
+```sh
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps -a
+curl -fsS http://127.0.0.1:8080/readyz
+```
+
+迁移服务成功退出后，应用启动。用浏览器打开 `http://127.0.0.1:8080/`，用户填 `operator`，密码填 `DASHBOARD_PASSWORD` 的值。Compose 将端口绑定到宿主机回环地址。生产环境通过内网 HTTPS 入口访问，并根据实际存储配置验证 PostgreSQL TLS 和 Redis TLS。首次登录后在「日志数据源」点击「检查」。
+
+### Kubernetes
+
+准备集群可访问的 PostgreSQL 和 Redis。构建镜像并推送到集群可拉取的镜像仓库，再把清单中 Job 和 Deployment 的镜像替换为同一个实际版本。
+
+```sh
+docker build -t registry.example.net/sre-aiobs:1.0.0 .
+docker push registry.example.net/sre-aiobs:1.0.0
+```
+
+在目标命名空间准备好 `config.yaml` 和两个部署用环境文件。运行环境文件包含 `DATABASE_URL`、`REDIS_URL`、`DASHBOARD_PASSWORD` 及启用功能所需的凭据。迁移环境文件包含有 DDL 权限的 `DATABASE_URL`。两者指向同一个数据库。
+
+```sh
+kubectl create configmap sre-aiobs-config --from-file=config.yaml
+kubectl create secret generic sre-aiobs-env --from-env-file=/secure/path/runtime.env
+kubectl create secret generic sre-aiobs-migration-env --from-env-file=/secure/path/migration.env
+kubectl apply -f deploy/kubernetes/deployment.yaml
+kubectl wait --for=condition=complete job/sre-aiobs-migrate-002 --timeout=180s
+kubectl rollout status deployment/sre-aiobs --timeout=180s
+kubectl port-forward service/sre-aiobs 8080:8080
+```
+
+以上命令使用当前 Kubernetes 命名空间。升级迁移时，为新版本的 Job 使用新的名称，并等待迁移完成。挂载 GeoIP 数据库时更新卷配置。团队访问使用内部 HTTPS 入口，监控配置使用 `/metrics`。应用通过 `/healthz` 和 `/readyz` 暴露健康与就绪状态。
 
 ## 应用后端日志探测
 

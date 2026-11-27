@@ -2,6 +2,19 @@
 
 Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearch 和 Loki，通过聚合结果检测访问异常，使用 PostgreSQL 保存任务与风险事件，通过 Redis 协调任务、AI 调用限额和 Telegram 冷却。
 
+## 界面预览
+
+打开仓库里的 [离线演示](docs/preview/index.html)，在 GitHub 文件页点击 **Download raw file**，下载后双击 `index.html`。演示包含安全概览、Nginx 风险接口、漏洞检测、数据源列表和告警设置，使用模拟数据，支持筛选和查看详情。
+
+## 部署方式
+
+| 环境 | 部署入口 |
+| --- | --- |
+| 内网服务器或单机 | [Docker Compose](docs/deployment.md#docker-compose)，包含 PostgreSQL、Redis、数据库迁移和 Go 服务 |
+| Kubernetes | [Kubernetes](docs/deployment.md#kubernetes)，使用集群可访问的 PostgreSQL、Redis、Elasticsearch 或 Loki |
+
+启用真实数据源后，使用「日志数据源」中的「检查」验证连接。默认 Compose 看板地址为 `http://127.0.0.1:8080/`，用户名填 `operator`，密码为 `DASHBOARD_PASSWORD`。
+
 ## 项目结构
 
 | 目录 | 职责 |
@@ -13,7 +26,7 @@ Go 编写的 Nginx 日志安全检测和告警服务。读取现有 Elasticsearc
 | `internal/detect` | 规则、历史基线、风险评分、按 IP 关联 |
 | `internal/ai` | 上游调用、脱敏、JSON 输出校验、限流和熔断 |
 | `internal/store` | PostgreSQL 状态和 Redis 协调 |
-| `internal/notify` | Telegram 和 AWS SES |
+| `internal/notify` | Slack、Telegram 和 AWS SES |
 | `internal/worker` | 调度与窗口处理 |
 | `migrations`、`deploy` | 数据库、Kubernetes 与 Grafana |
 | `testdata`、`tests` | 模拟日志和 Compose 集成测试 |

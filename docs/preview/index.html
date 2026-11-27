@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>安全概览 · SRE AIObs</title>
+<style>
+:root{font-family:Inter,"Noto Sans SC","PingFang SC",system-ui,sans-serif;color:#172743;background:#f1f5fa;font-size:16px;--muted:#536782;--line:#dbe5f0;--blue:#285fd9}
+*{box-sizing:border-box}body{margin:0}a{color:inherit;text-decoration:none}button,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{cursor:wait;opacity:.6}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #698ff7;outline-offset:3px}[hidden]{display:none!important}
+.layout{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:28px 16px 22px;background:#12223e;color:#d9e5fa}.brand{display:flex;align-items:center;gap:12px;padding:0 9px;margin-bottom:47px}.brand strong{color:#fff;font-size:1.12rem;letter-spacing:-.025em}.brand small{display:block;color:#a6b9d7;font-size:.72rem;letter-spacing:.075em;margin-top:4px}.mark{flex:none;background:#3062ea;color:#fff;display:grid;place-items:center;width:40px;height:40px;border-radius:11px;font-size:1.6rem}.sidebar nav{display:grid;gap:8px}.sidebar nav a{display:flex;gap:12px;align-items:center;padding:12px 13px;font-size:.94rem;border-radius:8px}.sidebar nav a span{font-size:1.2rem;width:19px;text-align:center}.sidebar nav a:hover,.sidebar nav [aria-current]{background:#233b66;color:#fff}.sidefoot{margin-top:auto;border-top:1px solid #314668;padding:18px 10px 0;color:#b3c4de;font-size:.83rem}.side-dot,.connection i,.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#15a47a;margin-right:8px}
+.top{height:65px;background:white;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 34px}.breadcrumb,.connection{font-size:.88rem;color:var(--muted)}.breadcrumb span{margin:0 8px;color:#899bb2}.connection{display:flex;align-items:center}.connection i{background:#8e9cb0}.connection[data-state=connected] i{background:#15a47a}.connection[data-state=error] i{background:#bc3e54}
+.content{max-width:1520px;margin:auto;padding:30px 34px 44px}.intro{display:flex;justify-content:space-between;align-items:center;gap:14px}h1,h2,p{margin:0}h1{font-size:2rem;letter-spacing:-.045em}h2{font-size:1.1rem;letter-spacing:-.02em}.intro p,.panel-head p{color:var(--muted);margin-top:7px;font-size:.9rem}.intro button,#detail button{background:#fff;border:1px solid #c8d7ed;border-radius:8px;padding:9px 15px;color:#264b8a;white-space:nowrap}.intro button:hover,#detail button:hover{background:#eaf1ff}.intro button span{font-size:1.14rem;margin-right:3px}
+.filters{display:flex;align-items:end;gap:14px;margin:24px 0 18px}.filters label{display:grid;gap:6px;color:var(--muted);font-size:.87rem}select{appearance:none;background:#fff;border:1px solid #cfdaea;border-radius:8px;padding:9px 33px 9px 11px;font-size:.88rem;background-image:linear-gradient(45deg,transparent 50%,#50698b 50%),linear-gradient(135deg,#50698b 50%,transparent 50%);background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px;background-repeat:no-repeat;max-width:100%}#last{color:var(--muted);font-size:.82rem;margin:0 0 8px auto}#error{margin-bottom:16px;border:1px solid #ecc2ca;background:#fff1f4;color:#8c2940;border-radius:9px;padding:11px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.metrics article,.panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 6px #152f5508}.metrics article{padding:17px 16px}.metrics article div{display:flex;align-items:center;gap:9px;color:#3c5272;font-size:.91rem}.metrics strong{display:block;font-size:1.95rem;letter-spacing:-.035em;margin:11px 0 3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metrics small{color:var(--muted);font-size:.8rem}.badge{width:30px;height:30px;display:grid;place-items:center;border-radius:8px;font-size:1.13rem;font-weight:650}.blue{color:#2256ca;background:#e8efff}.coral{color:#b6284a;background:#fceaf0}.violet{color:#6a45c0;background:#f0eafe}.amber{color:#8f4e05;background:#fff1dd}
+.graphs{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(235px,1fr);gap:15px;margin:17px 0}.panel{min-width:0;padding:17px 18px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.legend{color:var(--muted);font-size:.84rem;white-space:nowrap}.legend i{background:#386deb}#trend{display:block;width:100%;height:221px}.empty{color:var(--muted);font-size:.9rem;padding:32px 8px;text-align:center}.bar-row{margin:15px 0}.bar-label{display:flex;justify-content:space-between;gap:8px;font-size:.87rem}.bar-row progress{display:block;width:100%;height:8px;margin-top:7px;appearance:none;border:0;border-radius:20px;overflow:hidden;background:#eaf0fa;accent-color:#386deb}.bar-row progress::-webkit-progress-bar{background:#eaf0fa}.bar-row progress::-webkit-progress-value{background:#386deb;border-radius:20px}
+.listing{margin-top:17px;scroll-margin-top:14px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;text-align:left;font-size:.88rem}th{color:#435a7c;background:#f3f7fd;font-weight:600}td,th{padding:12px 10px;border-bottom:1px solid #e6edf6}tr:last-child td{border-bottom:0}.pill{display:inline-block;border-radius:6px;padding:3px 8px;color:#2a527f;background:#eaf2fd;font-weight:600}.pill.high,.pill.failed{background:#fce9ee;color:#9e2044}.pill.medium,.pill.running{background:#fff0db;color:#834900}.pill.done{color:#176a54;background:#e2f5ee}.detail-link{border:0;background:transparent;color:#2355b6;padding:4px;text-decoration:underline}.mono{font-family:ui-monospace,monospace;font-size:.83rem}
+dialog{width:min(92vw,590px);max-height:85vh;padding:22px;border:1px solid var(--line);border-radius:13px;color:#172743}dialog::backdrop{background:#14234099}dl{display:grid;grid-template-columns:110px 1fr;gap:10px;margin:16px 0;color:#354e6e}dt{font-weight:600}dd{margin:0;overflow-wrap:anywhere}#detail-content p{line-height:1.6;overflow-wrap:anywhere}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:1050px){.layout{grid-template-columns:180px minmax(0,1fr)}.content,.top{padding-left:22px;padding-right:22px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.layout{display:block}.sidebar{position:static;height:auto;padding:12px 14px}.brand{margin:0 0 10px;padding:0}.brand small,.sidefoot{display:none}.sidebar nav{display:flex;gap:4px;flex-wrap:wrap}.sidebar nav a{padding:7px 9px}.top{height:49px}.content{padding-top:21px}.content,.top{padding-left:14px;padding-right:14px}.graphs{grid-template-columns:1fr}.filters{flex-wrap:wrap}#last{margin-left:0;width:100%}.metrics article{padding:12px}h1{font-size:1.65rem}}
+#alert-form fieldset{margin:0;padding:0;border:0;min-width:0}#alert-form input:not([type=checkbox]){width:100%;padding:9px 11px;border:1px solid #cfdaea;border-radius:8px;background:white;color:inherit;font:inherit}#alert-form input:focus-visible,#alert-save:focus-visible{outline:3px solid #698ff7;outline-offset:3px}.alert-fields,#alert-actions{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.alert-fields label,#alert-actions label{display:grid;gap:5px;width:min(100%,210px);font-size:.88rem;color:var(--muted)}.alert-channels{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0}.alert-channels label{display:flex;align-items:center;gap:6px;font-size:.9rem}.alert-channels input{accent-color:var(--blue);width:16px;height:16px}#slack-state{color:var(--muted)}#alert-save{background:#285fd9;color:#fff;font-weight:600;border:0;border-radius:8px;padding:9px 14px}#alert-status{font-size:.87rem;color:var(--muted);margin-top:10px}
+
+.channel-setup{margin:0 0 16px;color:var(--muted);font-size:.88rem;line-height:1.6;overflow-wrap:anywhere}.channel-setup p+p{margin-top:5px}.channel-setup a{color:#2355b6;text-decoration:underline}.channel-setup code{font-size:.9em}
+
+.channel-setup .channel-button{display:inline-block;margin:0 8px 8px 0;padding:9px 14px;border:1px solid #aac0ef;border-radius:8px;background:#eaf1ff;color:#1747a4;font-weight:600;text-decoration:none}.channel-setup .channel-button:hover{background:#dce8ff}
+.backend-counts{grid-template-columns:repeat(auto-fit,minmax(112px,1fr));padding:0;gap:10px;margin:0 0 16px}.backend-counts>div{background:#f3f7fd;padding:10px 12px;border-radius:8px}.backend-counts dt{font-size:.85rem}.backend-counts dd{margin-top:4px;font-size:1.25rem;font-weight:650;font-variant-numeric:tabular-nums}
+.source-check{display:inline-flex;align-items:center;gap:8px;white-space:normal}.source-check [role=status]{color:var(--muted)}
+
+.source-hint{margin:0 0 12px;color:var(--muted);font-size:.88rem}
+
+</style>
+
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><span class="mark" aria-hidden="true">◈</span><div><strong>SRE AIObs</strong><small>LOG OPERATIONS</small></div></div>
+  <nav aria-label="看板导航">
+    <a href="#overview" aria-current="location"><span aria-hidden="true">▦</span>安全概览</a>
+    <a href="#events"><span aria-hidden="true">◇</span>风险事件</a>
+    <a href="#sources"><span aria-hidden="true">≋</span>数据源</a>
+    <a href="#nginx-routes"><span aria-hidden="true">◇</span>Nginx 风险接口</a>
+    <a href="#vulnerability-findings"><span aria-hidden="true">▤</span>漏洞检测</a>
+    <a id="alert-nav" href="#alert-settings"><span aria-hidden="true">⚙</span>告警设置</a>
+    <a href="#tasks"><span aria-hidden="true">≡</span>任务记录</a>
+  </nav>
+  <div class="sidefoot"><span class="side-dot"></span>安全运维控制台</div>
+</aside>
+<main id="overview">
+  <header class="top"><div class="breadcrumb">安全运营 <span>/</span> 安全概览</div><div class="connection"><i></i><span id="connection">连接中</span></div></header>
+  <div class="content">
+    <section class="intro"><div><h1>安全概览</h1><p>查看 Nginx 流量、后端日志事件与探测任务。</p></div><button id="refresh" type="button"><span aria-hidden="true">⟳</span> 刷新</button></section>
+    <form class="filters" aria-label="数据筛选"><label>数据源<select id="source"><option value="">全部数据源</option></select></label><label>时间范围<select id="hours"><option value="1">最近 1 小时</option><option value="6">最近 6 小时</option><option value="24" selected>最近 24 小时</option><option value="168">最近 7 天</option></select></label><span id="last" role="status"></span></form>
+    <p id="error" role="alert" hidden></p>
+    <section class="metrics" aria-label="汇总指标">
+      <article><div><span class="badge blue">≋</span>聚合请求量</div><strong id="requests">—</strong><small>当前窗口内的日志条数</small></article>
+      <article><div><span class="badge coral">◇</span>高风险事件</div><strong id="alerts">—</strong><small>风险评分 ≥ 80</small></article>
+      <article><div><span class="badge violet">▤</span>探测任务</div><strong id="runs">—</strong><small>当前窗口内的任务数</small></article>
+      <article><div><span class="badge amber">!</span>失败任务</div><strong id="failed">—</strong><small>当前处于失败状态</small></article>
+    </section>
+    <div class="graphs">
+      <section class="panel"><div class="panel-head"><div><h2>请求趋势</h2><p id="interval">聚合窗口请求量</p></div><span class="legend"><i></i>请求量</span></div><canvas id="trend" aria-label="请求趋势图" role="img"></canvas><p id="trend-empty" class="empty" hidden>当前筛选范围内暂无请求数据。</p></section>
+      <section class="panel"><div class="panel-head"><div><h2>风险规则分布</h2><p>按命中次数排序</p></div></div><div id="rules"></div></section>
+    </div>
+    <section id="events" class="panel listing"><div class="panel-head"><div><h2>风险事件</h2><p>最近 100 条符合筛选条件的记录</p></div><label class="sr" for="score">风险级别</label><select id="score"><option value="0">所有风险</option><option value="65">评分 ≥ 65</option><option value="80">评分 ≥ 80</option></select></div>
+      <div class="table-wrap"><table><thead><tr><th>检测规则</th><th>风险评分</th><th>客户端 IP</th><th>数据源</th><th>出现时间</th><th>详情</th></tr></thead><tbody id="event-body"></tbody></table></div>
+    </section>
+    <section id="sources" class="panel listing">
+      <div class="panel-head"><div><h2>日志数据源</h2><p id="source-status" role="status">正在加载配置…</p></div></div>
+      <p class="source-hint">应用日志已进入 Loki 或 Elasticsearch 时，可直接接入。「检查」显示最近 1 分钟的匹配日志量。</p>
+      <div class="table-wrap"><table><thead><tr><th>数据源</th><th>类型</th><th>环境</th><th>探测能力</th><th>连通性</th></tr></thead><tbody id="source-body"></tbody></table></div>
+    </section>
+    <section id="nginx-routes" class="panel listing">
+      <div class="panel-head"><div><h2>Nginx 风险接口</h2><p id="nginx-status" role="status">正在加载接口事件…</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>接口</th><th>检测规则</th><th>风险评分</th><th>命中请求数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="nginx-body"></tbody></table></div>
+    </section>
+    <section id="vulnerability-findings" class="panel listing">
+      <div class="panel-head"><div><h2>漏洞检测</h2><p id="vulnerability-status" role="status">正在加载漏洞发现…</p></div></div>
+      <p class="source-hint">模拟 CVE 数据。上线后接入可信扫描源与 AWS SES，可定期发送报告。<a href="#alert-settings">邮件设置</a></p>
+      <div class="table-wrap"><table><thead><tr><th>CVE</th><th>扫描记录数</th><th>数据源</th><th>窗口结束</th><th>详情</th></tr></thead><tbody id="vulnerability-body"></tbody></table></div>
+    </section>
+    <section id="alert-settings" class="panel listing">
+      <div class="panel-head"><div><h2>告警设置</h2><p>分钟任务使用评分和冷却设置发送实时告警。</p></div></div>
+      <div class="channel-setup" aria-label="通知渠道配置">
+        <a class="channel-button" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">配置 Telegram 机器人</a>
+        <a class="channel-button" href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">配置 Slack Webhook</a>
+        <p>Telegram：用 <code>/newbot</code> 创建机器人，注入 <code>TELEGRAM_BOT_TOKEN</code>，并在 YAML 填写 <code>telegram_chat</code>。</p>
+        <p>Slack：启用 Incoming Webhooks，选择接收频道，再注入 <code>SLACK_WEBHOOK_URL</code>。</p>
+      </div>
+      <form id="alert-form" autocomplete="off">
+        <fieldset id="alert-fields" disabled>
+          <div class="alert-fields"><label>最低风险评分<input id="minimum-score" type="number" min="1" max="100" required></label>
+            <label>冷却时间（分钟）<input id="cooldown-minutes" type="number" min="1" max="1440" required></label></div>
+          <div class="alert-channels">
+            <label><input id="alert-slack" type="checkbox">Slack 实时告警 <small id="slack-state"></small></label>
+            <label><input id="alert-telegram" type="checkbox">Telegram 实时告警</label>
+            <label><input id="alert-email" type="checkbox">邮件小时报告与日报</label>
+          </div>
+        </fieldset>
+        <div id="alert-actions" hidden><label>告警管理密码 <input id="alert-password" type="password" required></label><button id="alert-save" type="submit">保存设置</button></div>
+        <p id="alert-status" role="status">加载设置中…</p>
+      </form>
+    </section>
+    <section id="tasks" class="panel listing"><div class="panel-head"><div><h2>任务记录</h2><p>最近 100 条探测任务</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>数据源</th><th>状态</th><th>窗口结束时间</th><th>尝试次数</th><th>Run ID</th></tr></thead><tbody id="task-body"></tbody></table></div>
+    </section>
+  </div>
+</main>
+</div>
+<dialog id="detail"><div class="panel-head"><h2 id="detail-title">事件详情</h2><form method="dialog"><button aria-label="关闭详情">关闭</button></form></div><div id="detail-content"></div></dialog>
+<script>
+function offlineData(filters, now = Date.now()) {
+  const hours = Number(filters.get("hours")), score = Number(filters.get("score"));
+  const sources = ["nginx-edge-demo","nginx-api-demo","orders-backend-demo","scanner-demo"];
+  const selected = sources.filter(source => !filters.get("source") || source === filters.get("source"));
+  const kind = hours<=6 ? "five_minutes" : "hour";
+  const minutes = kind==="hour" ? 60 : 5;
+  const stride = minutes*60000;
+  const end = Math.floor(now/stride)*stride;
+  const trend = [], events = [], tasks = [], rules = new Map();
+  const iso = at => new Date(at).toISOString();
+  const types = ["sensitive_uri","uri_frequency","xss","path_traversal"];
+  let requests=0, alerts=0, failed=0;
+  for(let i=hours*60/minutes-1;i>=0;i--){
+    const at=iso(end-i*stride);
+    let count=0;
+    for(const source of selected){
+      const offset=sources.indexOf(source);
+      const id="demo-"+offset+"-"+i;
+      const status=(i+4*offset)%17===6?"failed":"done";
+      tasks.push({id,source,window_end:at,status,attempts:status==="failed"?2:1});
+      if(status==="failed"){failed++;continue;}
+      count+=Math.round((minutes===60?1800:170)*(1+.47*Math.sin(i*1.13+offset))+(i*37+offset*191)%420);
+      if(source==="scanner-demo"){
+        if(i%4===0){
+          alerts++;
+          if(score<=80) events.push({id,at,source,score:80,correlation_id:"demo-scan-"+i,
+            event:{Rule:"scanner_vulnerability",Target:"CVE-2099-000"+(1+i%3),Count:1+i%5}});
+        }
+        continue;
+      }
+      if((i+offset)%3===0){
+        const index=(i+offset*3)%4, backend=source==="orders-backend-demo";
+        const rating=(backend?[85,80,95,85]:[65,45,100,60])[index];
+        const rule=(backend?["backend_exception","backend_error_spike","backend_critical_log","backend_dependency_failure"]:types)[index];
+        if(rating>=80) alerts++;
+        if(rating<score) continue;
+        rules.set(rule,(rules.get(rule)||0)+1);
+        events.push({id,at,source,score:rating,correlation_id:"demo-correlation-"+i,
+          event:{Rule:rule,Target:backend?"": ["/admin","/api/orders/:id","/search","/download"][index],IP:backend?"":"192.0.2."+(20+(i+offset)%60),Country:backend?"":"MY",Count:3+i%14,Signals:!backend&&index===2?["sensitive_uri","unexpected_host"]:[]},
+          analysis:!backend&&index===2?{summary:"同一示例客户端命中敏感 URI 和异常 Host 规则。",actions:["复核相关聚合窗口。"]}:null});
+      }
+    }
+    requests+=count;
+    trend.push({at,count});
+  }
+  const backendEvents=events.filter(item=>item.event.Rule.startsWith("backend_"));
+  const backendCounts=Object.fromEntries(Array.from(rules).filter(([rule])=>rule.startsWith("backend_")));
+  const backend={total:backendEvents.length,counts:backendCounts,events:backendEvents.reverse().slice(0,100)};
+  const nginxEvents=events.filter(item=>types.includes(item.event.Rule));
+  const nginx={total:nginxEvents.length,events:nginxEvents.reverse().slice(0,100)};
+  const findings=events.filter(e=>e.event.Rule==="scanner_vulnerability");
+  const vulnerabilities={total:findings.length,events:findings.reverse().slice(0,100)};
+  return {backend,nginx,vulnerabilities,runs:tasks.length,requests,alerts,failed,sources,kind,updated:iso(now),trend,
+    tasks:tasks.reverse().slice(0,100),events:events.reverse().slice(0,100),
+    rules:Array.from(rules,([rule,count])=>({rule,count})).sort((a,b)=>b.count-a.count).slice(0,6)};
+}
+"use strict";
+
+const byId = id => document.getElementById(id);
+const number = new Intl.NumberFormat("zh-CN");
+const date = new Intl.DateTimeFormat("zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
+const clock = new Intl.DateTimeFormat("zh-CN", {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false});
+const labels = new Map(Object.entries({
+  ip_frequency:"IP 请求频率",uri_frequency:"URI 请求频率", unexpected_host:"异常 Host",
+  unexpected_user_agent:"异常 User-Agent",sensitive_uri:"敏感 URI",sql_injection:"SQL 注入特征",
+  xss:"XSS 特征",path_traversal:"路径遍历特征",http_status:"HTTP 状态异常",latency_p95:"P95 延迟异常",correlated:"多维事件关联",
+  backend_critical_log:"后端严重日志",backend_error_spike:"后端错误激增",
+  backend_exception:"后端未处理异常",backend_dependency_failure:"依赖故障激增",scanner_vulnerability:"漏洞扫描发现"
+}));
+const statuses = new Map([["done","已完成"],["failed","失败"],["running","运行中"]]);
+let trend = [];
+let activeRequest;
+
+function element(tag, text, style) {
+  const el = document.createElement(tag);
+  if (text !== undefined) el.textContent = text;
+  if (style) el.className = style;
+  return el;
+}
+
+function rows(body, records, columns, render) {
+  body.replaceChildren();
+  if (!records.length) {
+    const cell = element("td", "当前筛选范围内暂无记录。", "empty");
+    cell.colSpan = columns;
+    body.append(element("tr"));
+    body.firstChild.append(cell);
+    return;
+  }
+  for (const record of records) {
+    const row = element("tr");
+    for (const value of render(record)) {
+      const cell = element("td");
+      cell.append(value);
+      row.append(cell);
+    }
+    body.append(row);
+  }
+}
+
+function showDetail(record) {
+  const {event,analysis} = record;
+  byId("detail-title").textContent = labels.get(event.Rule) || event.Rule;
+  const fields = event.Rule==="scanner_vulnerability" ? [
+    ["CVE",event.Target],["扫描记录数",number.format(event.Count)],["数据源",record.source],["Run ID",record.id]
+  ] : [
+    ["客户端 IP",event.IP],["地区",[event.Country,event.Region].filter(Boolean).join(" / ")],
+    ["目标标识",event.Target],[event.Rule.startsWith("backend_")?"日志条数":"请求次数",number.format(event.Count)],
+    ["关联规则",(event.Signals || []).map(rule => labels.get(rule) || rule).join("、")],
+    ["Run ID",record.id],["Correlation ID",record.correlation_id]
+  ];
+  const list = element("dl");
+  for (const [name,value] of fields) list.append(element("dt",name),element("dd",value || "—"));
+  const content = byId("detail-content");
+  content.replaceChildren(list);
+  content.append(element("h2","AI 分析"));
+  if (analysis) {
+    content.append(element("p",analysis.summary));
+    const actions = element("ul");
+    for (const action of analysis.actions || []) actions.append(element("li",action));
+    if (actions.childElementCount) content.append(actions);
+  } else {
+    content.append(element("p","该任务暂无 AI 分析。"));
+  }
+  byId("detail").showModal();
+}
+
+function draw() {
+  const canvas = byId("trend");
+  canvas.hidden = !trend.length;
+  byId("trend-empty").hidden = trend.length > 0;
+  if (!trend.length) return;
+  const {width,height} = canvas.getBoundingClientRect();
+  if (!width || !height) return;
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale,scale);
+  ctx.font = "12px system-ui";
+  const peak = Math.max(1,...trend.map(entry => entry.count));
+  const compact = new Intl.NumberFormat("zh-CN",{notation:"compact",maximumFractionDigits:1});
+  const left = Math.max(43,ctx.measureText(compact.format(peak)).width + 12);
+  const right = width - 9, bottom = height - 31, top = 13;
+  ctx.strokeStyle = "#e2eaf6";
+  ctx.fillStyle = "#526885";
+  ctx.textAlign = "right";
+  for (let step=0;step<=4;step++) {
+    const y = bottom - step * (bottom-top)/4;
+    ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();
+    ctx.fillText(compact.format(peak*step/4),left-8,y+4);
+  }
+  const first = Date.parse(trend[0].at), last = Date.parse(trend.at(-1).at);
+  const points = trend.map(entry => [
+    first===last?(left+right)/2:left+(right-left)*(Date.parse(entry.at)-first)/(last-first),
+    bottom-(bottom-top)*entry.count/peak
+  ]);
+  const gradient = ctx.createLinearGradient(0,top,0,bottom);
+  gradient.addColorStop(0,"#386deb44");
+  gradient.addColorStop(1,"#386deb05");
+  ctx.beginPath();
+  ctx.moveTo(points[0][0],bottom);
+  for (const [x,y] of points) ctx.lineTo(x,y);
+  ctx.lineTo(points.at(-1)[0],bottom);
+  ctx.fillStyle=gradient;ctx.fill();
+  ctx.beginPath();
+  points.forEach(([x,y],index)=>index?ctx.lineTo(x,y):ctx.moveTo(x,y));
+  ctx.strokeStyle="#3164e4";ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.stroke();
+  ctx.fillStyle="#3164e4";
+  if (points.length<=24) for (const [x,y] of points) {
+    ctx.beginPath();ctx.arc(x,y,3,0,2*Math.PI);ctx.fill();
+  }
+  ctx.fillStyle="#526885";
+  ctx.textAlign="left";
+  ctx.fillText(date.format(first),left,bottom+22);
+  if (first!==last && right-left>145) {
+    ctx.textAlign="right";
+    ctx.fillText(date.format(last),right,bottom+22);
+  }
+  canvas.setAttribute("aria-label",`请求趋势，${trend.length} 个窗口，峰值 ${number.format(peak)}`);
+}
+
+function render(data) {
+  for (const key of ["requests","alerts","runs","failed"]) byId(key).textContent = number.format(data[key]);
+  byId("interval").textContent = data.kind==="hour"?"按小时聚合":"每 5 分钟聚合";
+  byId("last").textContent = "更新于 " + clock.format(new Date(data.updated));
+  const source = byId("source"), previous = source.value;
+  const sources = new Set(data.sources);
+  if (previous) sources.add(previous);
+  source.replaceChildren(new Option("全部数据源",""), ...Array.from(sources, name => new Option(name,name)));
+  source.value=previous;
+  trend=data.trend;
+  draw();
+
+  const rules = byId("rules");
+  rules.replaceChildren();
+  for (const rule of data.rules) {
+    const name = labels.get(rule.rule) || rule.rule;
+    const line = element("div",undefined,"bar-row"), caption=element("div",undefined,"bar-label");
+    caption.append(element("span",name),element("strong",number.format(rule.count)));
+    const bar = element("progress");
+    bar.max=data.rules[0].count;
+    bar.value=rule.count;
+    bar.setAttribute("aria-label",name);
+    line.append(caption,bar);
+    rules.append(line);
+  }
+  if (!data.rules.length) rules.append(element("p","当前筛选范围内暂无规则命中。","empty"));
+
+  rows(byId("event-body"),data.events,6,item => {
+    const event=item.event;
+    return [labels.get(event.Rule)||event.Rule,riskRating(item.score),element("span",event.IP||"—","mono"),item.source,date.format(new Date(item.at)),detailButton(item)];
+  });
+  rows(byId("task-body"),data.tasks,5,item => [
+    item.source,element("span",statuses.get(item.status)||item.status,"pill "+(statuses.has(item.status)?item.status:"")),
+    date.format(new Date(item.window_end)),String(item.attempts),element("span",item.id,"mono")
+  ]);
+}
+
+function riskRating(score) {
+  return element("span",String(score),"pill "+(score>=80?"high":score>=65?"medium":""));
+}
+
+function detailButton(item) {
+  const button=element("button","查看","detail-link");
+  button.type="button";
+  button.addEventListener("click",()=>showDetail(item));
+  return button;
+}
+
+function renderVulnerabilities(data) {
+  const total=number.format(data.total);
+  byId("vulnerability-status").textContent=data.total>data.events.length
+    ? `共 ${total} 条发现，显示最近 ${data.events.length} 条。` : `共 ${total} 条发现。`;
+  rows(byId("vulnerability-body"),data.events,5,item=>[
+    element("span",item.event.Target,"mono"),number.format(item.event.Count),
+    item.source,date.format(new Date(item.at)),detailButton(item)
+  ]);
+}
+
+function refreshVulnerabilities(filters) { renderVulnerabilities(offlineData(filters).vulnerabilities); }
+
+function renderNginxRoutes(data) {
+  byId("nginx-status").textContent=`共 ${number.format(data.total)} 条事件，显示最近 ${data.events.length} 条。`;
+  rows(byId("nginx-body"),data.events,7,item=>[
+    element("span",item.event.Target||"—","mono"),labels.get(item.event.Rule)||item.event.Rule,
+    riskRating(item.score),number.format(item.event.Count),item.source,date.format(new Date(item.at)),detailButton(item)
+  ]);
+}
+
+function refreshNginxRoutes(filters) {renderNginxRoutes(offlineData(filters).nginx);}
+function checkSource(name,button,status) {status.textContent="模拟检查 · 可查询";}
+
+function renderSources(sources) {
+  byId("source-status").textContent=`已配置 ${sources.length} 个数据源。`;
+  rows(byId("source-body"),sources,5,source=>{
+    const cell=element("span",undefined,"source-check");
+    const status=element("span");
+    status.setAttribute("role","status");
+    const check=element("button","检查", "detail-link");
+    check.type="button";
+    check.setAttribute("aria-label","检查 "+source.name);
+    check.addEventListener("click",()=>checkSource(source.name,check,status));
+    cell.append(check,status);
+    const capabilities=[source.backend?"后端日志":"",source.vulnerabilities?"漏洞扫描":""].filter(Boolean);
+    return [source.name,source.kind==="loki"?"Loki":"Elasticsearch",source.environment,capabilities.join("、")||"—",cell];
+  });
+}
+
+function loadSources() {
+  renderSources([
+    {name:"nginx-edge-demo",kind:"loki",environment:"demo"},
+    {name:"nginx-api-demo",kind:"elasticsearch",environment:"demo"},
+    {name:"orders-backend-demo",kind:"loki",environment:"demo",backend:true},
+    {name:"scanner-demo",kind:"loki",environment:"demo",vulnerabilities:true}
+  ]);
+  byId("source-status").textContent="演示数据源 · 连通性结果为模拟。";
+}
+
+async function refresh() {
+  activeRequest?.abort();
+  const controller = new AbortController();
+  activeRequest = controller;
+  const connection=byId("connection");
+  connection.textContent="更新中";
+  connection.parentElement.dataset.state="loading";
+  byId("refresh").disabled=true;
+  byId("error").hidden=true;
+  const filters=new URLSearchParams(Object.fromEntries(["source","hours","score"].map(id=>[id,byId(id).value])));
+  void refreshVulnerabilities(filters,controller);
+  void refreshNginxRoutes(filters,controller);
+  try {
+    const data=offlineData(filters);
+    if (activeRequest!==controller) return;
+    render(data);
+    connection.textContent="离线演示";
+    connection.parentElement.dataset.state="connected";
+  } catch (error) {
+    if (error.name==="AbortError" || activeRequest!==controller) return;
+    connection.textContent="数据不可用";
+    connection.parentElement.dataset.state="error";
+    byId("error").textContent=byId("last").textContent?"刷新失败，当前显示上次成功加载的数据。":"暂时无法加载数据，请稍后刷新。";
+    byId("error").hidden=false;
+  } finally {
+    if (activeRequest===controller) byId("refresh").disabled=false;
+  }
+}
+
+for (const id of ["source","hours","score"]) byId(id).addEventListener("change",refresh);
+document.querySelector(".filters").addEventListener("submit",event=>{event.preventDefault();refresh();});
+byId("refresh").addEventListener("click",refresh);
+new ResizeObserver(draw).observe(byId("trend").parentElement);
+window.addEventListener("hashchange",()=>{
+  for (const item of document.querySelectorAll("nav a")) {
+    if (item.hash===(location.hash||"#overview")) item.setAttribute("aria-current","location");
+    else item.removeAttribute("aria-current");
+  }
+});
+const demoAlerts = {minimum_score:80,cooldown_minutes:15,slack:true,telegram:true,email:true};
+refresh();
+requestAnimationFrame(()=>{if(!location.hash) byId("vulnerability-findings").scrollIntoView();});
+
+
+for (const key of ["slack","telegram","email"]) byId("alert-"+key).checked=demoAlerts[key];
+byId("minimum-score").value=demoAlerts.minimum_score;
+byId("cooldown-minutes").value=demoAlerts.cooldown_minutes;
+byId("alert-fields").disabled=false;
+byId("alert-actions").hidden=false;
+byId("alert-password").required=false;
+byId("alert-password").closest("label").hidden=true;
+byId("slack-state").textContent="· 模拟渠道";
+byId("alert-status").textContent="演示设置仅在当前页面生效。";
+byId("alert-form").addEventListener("submit",event=>{
+  event.preventDefault();
+  demoAlerts.minimum_score=byId("minimum-score").valueAsNumber;
+  demoAlerts.cooldown_minutes=byId("cooldown-minutes").valueAsNumber;
+  for (const key of ["slack","telegram","email"]) demoAlerts[key]=byId("alert-"+key).checked;
+  byId("alert-status").textContent=`已应用演示设置。最低评分 ${demoAlerts.minimum_score}，冷却 ${demoAlerts.cooldown_minutes} 分钟。离线页面不会发送通知。`;
+});
+
+
+
+loadSources();
+
+
+</script>
+</body>
+</html>
